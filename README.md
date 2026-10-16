@@ -24,6 +24,24 @@
 
 ---
 
+## Visual features
+
+Each scene can carry up to one `visual_cues` entry, dispatched by `window.fineVideoEngine.renderCue()` inside `backend/templates/_engine.js`:
+
+- **`icon`** — Phosphor SVG, 26 names vendored locally in `web/assets/icons/` (e.g. `lock`, `key`, `git-branch`, `rocket`, `coffee`, `bug`, `certificate`, `shield-check`, `terminal`).
+- **`image`** — inline SVG illustration from `backend/templates/illustrations/`. No external CDN, no copyright risk.
+- **`chart`** — simple bar / pie / line chart in pure SVG, driven by a `data` array.
+- **`decoration`** — code block, terminal mockup, stat card, scene-number badge, step number, particle background, fade-up entrance. Composable with any cue.
+
+Per-template signature features:
+- **Tech Explainer** — central icon hero + decorative code block + particles + scene-number badge.
+- **Promo / Ad** — large icon hero + animated stat counter + CTA button.
+- **Tutorial** — step-number badge + terminal mockup with real commands + progress visualization.
+
+The same `_engine.js` powers all three — adding a new template = copy an existing HTML and tweak the layout. The shared cue vocabulary makes the templates look related without forcing them to be identical.
+
+---
+
 ## Why Playwright + HTML/CSS (and not Remotion)
 
 Earlier versions used [Remotion](https://www.remotion.pro) for rendering. Remotion is free for individuals and small companies, but its **"Remotion for Automators"** tier charges **$100/month minimum** for any prompt-to-video app — which is exactly what this project is. That licensing structure makes a free public MIT repo untenable.
@@ -64,6 +82,8 @@ The first render takes ~3 min (Playwright downloads Chromium + TTS for all scene
 | Frontend | Vanilla HTML + JS + Tailwind (CDN) | MIT | Simple, no build step, easy to read |
 | Backend | Node.js + Fastify | MIT | Async-native, fast, schema validation |
 | Video render | Playwright + headless Chromium | Apache 2.0 | MIT-clean, no $100/mo Automators tier |
+| Icons | Phosphor (vendored in `web/assets/icons/`) | MIT | 26 hand-picked glyphs, inline SVGs, no CDN |
+| Visual cues | Custom `_engine.js` (icon / image / chart / decoration) | MIT | Same engine powers all 3 templates |
 | TTS | Python `edge-tts` (free MS Edge voices) | MIT | Multi-language, no API key needed |
 | Audio mux | ffmpeg-static | LGPL | Bundled binary, no system install needed |
 | Validation | Zod | MIT | Type-safe input parsing |
@@ -115,17 +135,33 @@ Full spec: [`docs/api.md`](docs/api.md)
 
 ## Demo samples
 
-Three real MP4s rendered end-to-end via the live server, committed to the repo:
+Three real MP4s rendered end-to-end via the live server, committed to the repo. All three use Vietnamese voiceover (`vi-VN-HoaiMyNeural`), brand color `#3B82F6`, and the deterministic render path.
 
-| Sample | Template | Duration | Size | Link |
-|---|---|---|---|---|
-| How HTTPS Works | Tech Explainer | 95.9s | 3.59 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
-| Một ngày của lập trình viên | Promo / Ad | 69.9s | 2.43 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
-| 5 Git commands cứu mạng bạn | Tutorial | 110.9s | 0.75 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
+| # | Sample | Template | Duration | Size | MP4 |
+|---|---|---|---|---|---|
+| 1 | How HTTPS Works | Tech Explainer | 95.9s | 1.83 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
+| 2 | Một ngày của lập trình viên | Promo / Ad | 69.9s | 1.98 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
+| 3 | 5 Git commands cứu mạng bạn | Tutorial | 110.9s | 2.07 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
 
-Each sample folder has the hand-written `script.json` used by the pipeline — useful for debugging, replay, or as a starting template for new demos.
+**Frames from the rendered videos** (Phosphor icons, particles, terminal mockups):
 
-See [`samples/README.md`](samples/README.md) for the full list and how to re-render.
+<p align="center">
+  <img src="docs/gallery/01-https-frame.png" width="48%" alt="Sample 01 - HTTPS handshake scene" />
+  &nbsp;
+  <img src="docs/gallery/02-dayincode-frame.png" width="48%" alt="Sample 02 - Bug debugging scene" />
+  <br>
+  <img src="docs/gallery/03-git-frame.png" width="48%" alt="Sample 03 - git stash terminal mockup" />
+</p>
+
+Each sample folder has the hand-written `script.json` used by the pipeline — useful for debugging, replay, or as a starting template for new demos. Re-render any sample with:
+
+```bash
+npm run render-sample -- 01-how-https-works
+npm run render-sample -- 02-a-day-in-code
+npm run render-sample -- 03-git-5-commands
+```
+
+See [`samples/README.md`](samples/README.md) for the full list and how to write your own.
 
 ---
 
@@ -137,7 +173,8 @@ fine-video-as-code/
 │   ├── agent-workflow.md  # System prompt for the AI agent (4-step pipeline)
 │   ├── architecture.md    # Architecture diagram + data flow
 │   ├── api.md             # REST + SSE API contract
-│   └── contributing.md    # How to add templates, report bugs
+│   ├── contributing.md    # How to add templates, report bugs
+│   └── gallery/           # 3 PNG frames from the rendered sample MP4s
 ├── web/                   # Frontend (vanilla HTML + JS)
 │   ├── index.html
 │   ├── css/style.css
@@ -150,6 +187,7 @@ fine-video-as-code/
 │   ├── workflow/          # step1-script, step2-tts, step4-render
 │   └── templates/         # 3 HTML templates + shared engine
 │       ├── _engine.js     # window.fineVideoEngine — brand CSS vars, __seek, visual_cues
+│       ├── illustrations/ # inline SVG charts and decorations
 │       ├── tech-explainer.html
 │       ├── promo.html
 │       └── tutorial.html
@@ -180,6 +218,7 @@ fine-video-as-code/
 | **M7** | Hand-written curated samples (3 invested scripts) | ✅ |
 | **M8** | Git history cleanup (rewrite commit messages) | ✅ |
 | **M9** | Audio/video sync fix + visual cues + deterministic render | ✅ |
+| **M10** | Phosphor icons + per-template enrichment (icon / image / chart / decoration cues) + re-rendered samples | ✅ |
 
 All milestones done. The system runs end-to-end on a fresh `npm install && npm start`.
 
