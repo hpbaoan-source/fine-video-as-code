@@ -16,14 +16,16 @@
 import { ScriptSchema } from "../lib/schema.js";
 import { complete } from "../lib/llm-client.js";
 
-// Estimate Vietnamese TTS speed: ~3.5 chars/sec natural pace.
-// EN pace is slightly faster.
-const WPM_VI = 210;  // chars per minute (VI reads slower per char)
-const WPM_EN = 950;  // words per minute (EN)
+// Estimate TTS duration. Vietnamese TTS runs ~900-1000 characters
+// per minute at natural pace; English is ~150-160 words per minute.
+// These are estimates only — step 2 measures the actual MP3 length
+// with ffmpeg and overwrites scene.duration_ms to match.
+const CHARS_PER_MINUTE_VI = 950;  // Vietnamese TTS chars/min
+const WPM_EN = 155;                // English TTS words/min
 
 function estimateDurationMs(text, language) {
   if (language === "vi") {
-    return Math.round((text.length / WPM_VI) * 60 * 1000);
+    return Math.round((text.length / CHARS_PER_MINUTE_VI) * 60 * 1000);
   }
   // very rough word counter
   const words = text.split(/\s+/).length;
@@ -70,15 +72,16 @@ const TEMPLATES = {
 function buildTemplateScript(input) {
   const tmpl = TEMPLATES[input.template];
   const pattern = tmpl.pattern;
-  const totalMs = input.duration * 1000;
-  const perScene = Math.floor(totalMs / pattern.length);
 
+  // Per-scene text length, then estimated duration. Don't divide
+  // the target total evenly — short hook lines and longer deep-dives
+  // have very different TTS runtimes.
   const scenes = pattern.map((p, i) => {
     const voiceover = generateVoiceoverForRole(input, p, i, pattern.length);
     return {
       id: `scene-${i + 1}`,
       voiceover,
-      duration_ms: perScene,
+      duration_ms: estimateDurationMs(voiceover, input.language),
       visual_cues: generateVisualCuesForRole(input, p, i, tmpl.visualMix),
       on_screen_text: deriveOnScreenText(voiceover, input.language),
     };

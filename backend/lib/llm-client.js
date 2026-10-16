@@ -20,7 +20,7 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 const DEFAULT_BASE_URL = "https://api.openai.com/v1";
 const DEFAULT_MODEL = "gpt-4o-mini";
 
-function readConfig() {
+export function readConfig() {
   const baseUrl = (process.env.LLM_BASE_URL || DEFAULT_BASE_URL).replace(/\/+$/, "");
   const apiKey = process.env.LLM_API_KEY || "";
   const model = process.env.LLM_MODEL || DEFAULT_MODEL;
@@ -44,7 +44,7 @@ function readConfig() {
  * @param {number} [args.temperature]  Defaults to 0.4.
  * @returns {Promise<{text: string, parsed?: any, model: string, usage: object}>}
  */
-async function complete({ system, user, json = false, maxTokens = 1024, temperature = 0.4 }) {
+export async function complete({ system, user, json = false, maxTokens = 1024, temperature = 0.4 }) {
   if (typeof system !== "string" || typeof user !== "string") {
     throw new TypeError("complete() requires { system: string, user: string }");
   }
@@ -77,7 +77,7 @@ async function complete({ system, user, json = false, maxTokens = 1024, temperat
   }
   if (!res.ok) {
     const errText = await res.text().catch(() => "<unreadable>");
-    throw new Error(`LLM ${res.status} ${res.statusText}: ${errText.slice(0, 500)}`);
+    throw new Error(`LLM ${res.status} ${res.statusText}: ${errText.slice(0, 200)}`);
   }
   const data = await res.json();
   const text = data?.choices?.[0]?.message?.content ?? "";
@@ -91,5 +91,3 @@ async function complete({ system, user, json = false, maxTokens = 1024, temperat
   }
   return out;
 }
-
-module.exports = { complete, readConfig };

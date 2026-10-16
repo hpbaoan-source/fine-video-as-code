@@ -22,11 +22,17 @@ export default async function generateRoutes(fastify) {
     }
     const input = parse.data;
 
-    // Sanity check: voice must match language
+    // Sanity check: voice must match language. Reject unknown voice
+    // with 400 rather than letting the workflow start and then fail
+    // halfway through.
     const allowed = VoicePresets[input.language] || [];
     if (allowed.length && !allowed.includes(input.voice)) {
-      // not a hard error — surface a warning, allow it through
-      req.log.warn({ voice: input.voice, language: input.language }, "voice not in preset list");
+      return reply.code(400).send({
+        error: "Invalid voice for selected language",
+        language: input.language,
+        allowed,
+        received: input.voice,
+      });
     }
 
     // Create job

@@ -60,7 +60,6 @@ await fastify.register(downloadRoutes, { prefix: "/api" });
 fastify.get("/health", async () => ({
   status: "ok",
   version: "0.1.0",
-  phase: "M1+ — workflow live",
   uptime: process.uptime(),
 }));
 

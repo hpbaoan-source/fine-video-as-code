@@ -1,36 +1,85 @@
 // ──────────────────────────────────────────────────────────────
-// render-sample.js — render 1 sample end-to-end
+// scripts/render-sample.js — re-render a curated sample by name
 // ──────────────────────────────────────────────────────────────
-// Usage:  node scripts/render-sample.js <sample-name>
-// Example: node scripts/render-sample.js 01-cloud-computing
+// Usage:  npm run render-sample -- <sample-folder>
+//   e.g.  npm run render-sample -- 01-how-https-works
+//
+// Reads samples/<name>/script.json, builds a synthetic input that
+// uses the `presetScript` field, calls runWorkflow in-process, then
+// copies the produced MP4 to samples/<name>/video.mp4 (overwriting
+// the old one).
+//
+// Requires: node 20+, edge-tts on PATH, Playwright Chromium
+// already installed (`npx playwright install chromium`).
 // ──────────────────────────────────────────────────────────────
 
-import { existsSync } from "node:fs";
-import { join, resolve } from "node:path";
+import path from "node:path";
+import fs from "node:fs/promises";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
+import { runWorkflow } from "../backend/workflow/index.js";
+import { jobStore } from "../backend/lib/job-store.js";
+import { GenerateInputSchema } from "../backend/lib/schema.js";
 
-const sample = process.argv[2];
-if (!sample) {
-  console.error("Usage: node scripts/render-sample.js <sample-folder-name>");
-  console.error("  e.g. node scripts/render-sample.js 01-cloud-computing");
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const projectRoot = path.join(__dirname, "..");
+
+const sampleName = process.argv[2];
+if (!sampleName) {
+  console.error("Usage: npm run render-sample -- <sample-folder>");
+  console.error("  e.g. npm run render-sample -- 01-how-https-works");
   process.exit(1);
 }
 
-const root = resolve(process.cwd());
-const sampleDir = join(root, "samples", sample);
-const inputFile = join(sampleDir, "input.json");
+const sampleDir = path.join(projectRoot, "samples", sampleName);
+const scriptPath = path.join(sampleDir, "script.json");
+const outputPath = path.join(sampleDir, "video.mp4");
 
-if (!existsSync(sampleDir)) {
-  console.error(`❌ Sample folder not found: ${sampleDir}`);
+// Read the script to know its template/language/voice (so we can
+// build a valid GenerateInput that Schema.parse will accept).
+const script = JSON.parse(await fs.readFile(scriptPath, "utf8"));
+const sceneSumMs = (script.scenes || []).reduce((s, sc) => s + (sc.duration_ms || 0), 0);
+const durationSec = Math.max(15, Math.round(sceneSumMs / 1000));
+
+// Use the absolute path so runWorkflow finds it regardless of cwd.
+const input = GenerateInputSchema.parse({
+  topic: script.meta?.topic || sampleName,
+  template: script.template,
+  language: script.language,
+  voice: script.voice,
+  duration: durationSec,
+  presetScript: scriptPath,
+  outputFilename: "video",
+});
+
+const jobId = `sample-${sampleName}-${Date.now()}`;
+const job = jobStore.create(input);
+console.log(`▶ Rendering ${sampleName} (jobId=${job.id})`);
+
+// Tee the SSE-like event log to stdout.
+const unsubscribe = jobStore.subscribe(job.id, (evt) => {
+  if (evt.type === "log") console.log(`  ${evt.message}`);
+  else if (evt.type === "step-progress") console.log(`  [${evt.step}] ${evt.percent}%`);
+  else if (evt.type === "step-done") console.log(`  ✓ step ${evt.step} done`);
+  else if (evt.type === "complete") console.log(`  ✓ complete`);
+  else if (evt.type === "error") console.log(`  ✗ ${evt.payload?.error || "error"}`);
+});
+
+try {
+  await runWorkflow(job);
+} finally {
+  unsubscribe();
+}
+
+const finalJob = jobStore.get(job.id);
+if (!finalJob || finalJob.status !== "completed") {
+  console.error(`✗ Render failed: status=${finalJob?.status}, error=${finalJob?.error}`);
   process.exit(1);
 }
-if (!existsSync(inputFile)) {
-  console.error(`❌ input.json not found in ${sampleDir}`);
-  console.error(`   (Will be added in M5 — for now this is a placeholder.)`);
-  process.exit(1);
-}
 
-console.log(`[TODO Phase 5] render-sample.js is a stub.`);
-console.log(`  Sample: ${sample}`);
-console.log(`  Input:  ${inputFile}`);
-console.log(`  → Will call backend /api/generate with this input and save output to samples/${sample}/video.mp4`);
-process.exit(0);
+// Copy the MP4 from the per-job workDir to the sample folder.
+const srcPath = finalJob.outputPath;
+await fs.copyFile(srcPath, outputPath);
+const stat = await fs.stat(outputPath);
+console.log(`✓ Saved ${outputPath} (${(stat.size / 1024).toFixed(1)} KB)`);

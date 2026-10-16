@@ -18,17 +18,17 @@
             │
             ├─► (3b) Step 2: TTS
             │      Python edge-tts per scene → audio/*.mp3
-            │      measure actual duration (ffprobe or header parse)
-            │      → durations.json
+            │      measure actual duration with ffmpeg -f null -
+            │      (writes scene.duration_ms from the measured length,
+            │       pads with silence if shorter than the estimate)
             │
-            ├─► (3c) Step 3: Asset generation
-            │      satori + resvg → assets/*.png  (optional, no-op)
-            │
-            └─► (3d) Step 4: Render
+            └─► (3c) Step 4: Render
                    Playwright + headless Chromium opens the template HTML
                    (1920×1080), records the page activity to webm,
                    ffmpeg-static: webm → mp4 (no audio),
                    then muxes with concatenated TTS audio → final MP4
+                   (audio offset by t0_offset_ms so it lines up with
+                   the first animation frame)
             │
             ▼
        SSE stream (real-time progress) → web UI
@@ -84,10 +84,9 @@ backend/
 │   ├── job-queue.js       # Single-process serial executor
 │   └── llm-client.js      # Provider-agnostic LLM wrapper
 ├── workflow/
-│   ├── index.js           # Orchestrator — runs 4 steps in sequence
+│   ├── index.js           # Orchestrator — runs 3 steps in sequence
 │   ├── step1-script.js    # Template + LLM rewrite + presetScript support
-│   ├── step2-tts.js       # Python edge-tts + duration measurement
-│   ├── step3-assets.js    # Satori → PNG (optional, no-op)
+│   ├── step2-tts.js       # Python edge-tts + actual-length measurement
 │   └── step4-render.js    # Playwright + ffmpeg-static
 └── templates/             # HTML templates for Playwright
     ├── tech-explainer.html

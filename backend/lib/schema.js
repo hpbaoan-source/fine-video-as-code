@@ -15,7 +15,7 @@ export const GenerateInputSchema = z.object({
   topic: z.string().min(3, "topic must be at least 3 chars").max(500),
   template: TemplateEnum,
   language: LanguageEnum.default("vi"),
-  voice: z.string().min(1),
+  voice: z.string().min(1).max(80), // validated against per-language whitelist in step2-tts.js
   duration: z.number().int().min(15).max(300), // seconds
   fps: z.number().int().min(15).max(60).default(30),
   resolution: ResolutionEnum.default("1080p"),

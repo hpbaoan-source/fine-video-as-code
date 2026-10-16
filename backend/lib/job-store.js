@@ -13,6 +13,7 @@
 
 import { EventEmitter } from "node:events";
 import { nanoid } from "nanoid";
+import { cleanupWorkDir } from "./cleanup.js";
 
 class JobStore {
   constructor() {
@@ -81,7 +82,10 @@ class JobStore {
         job.status = "expired";
         this.emitters.get(id)?.removeAllListeners();
         this.emitters.delete(id);
-        // keep `jobs` for a bit so download endpoint can return 410
+        // Best-effort: remove the on-disk workDir so tmp/jobs
+        // doesn't fill the disk. The job entry stays in memory
+        // for a bit so the download endpoint can return 410.
+        cleanupWorkDir(id).catch(() => {});
         setTimeout(() => {
           this.jobs.delete(id);
         }, 5 * 60 * 1000);

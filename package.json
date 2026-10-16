@@ -1,7 +1,7 @@
 {
   "name": "fine-video-as-code",
   "version": "0.1.0",
-  "description": "Open-source Video-as-Code pipeline. Turn a short topic into a polished explainer video: web form + JSON input + 4-step backend workflow (Playwright + Edge-TTS + ffmpeg-static) + MP4 file. Three built-in templates (Tech Explainer, Promo, Tutorial).",
+  "description": "Open-source Video-as-Code pipeline. Turn a short topic into a polished explainer video: web form + JSON input + 3-step backend workflow (Scripting + Edge-TTS + Playwright/ffmpeg-static) + MP4 file. Three built-in templates (Tech Explainer, Promo, Tutorial).",
   "main": "backend/server.js",
   "type": "module",
   "engines": {
@@ -38,13 +38,10 @@
   "dependencies": {
     "@fastify/cors": "^9.0.1",
     "@fastify/static": "^7.0.4",
-    "@resvg/resvg-js": "^2.6.2",
-    "execa": "^9.3.1",
     "fastify": "^4.28.0",
     "ffmpeg-static": "^5.3.0",
     "nanoid": "^5.0.7",
     "playwright": "^1.64.1",
-    "satori": "^0.60.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {

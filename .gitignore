@@ -8,13 +8,12 @@ yarn-error.log*
 package-lock.json.bak
 
 # ──────────────────────────────────────────────────────────────
-# Remotion render artifacts
+# Playwright runtime artifacts
 # ──────────────────────────────────────────────────────────────
+test-results/
+playwright-report/
+playwright/.cache/
 output/
-remotion-cache/
-.remotion-cache/
-.remotion/
-build/
 
 # ──────────────────────────────────────────────────────────────
 # Sample video files ARE committed (~2 MB total).
