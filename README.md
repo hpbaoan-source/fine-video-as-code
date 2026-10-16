@@ -16,12 +16,11 @@
 - 📣 **Promo / Ad** — product videos, social ads, brand intros
 - 📚 **Tutorial** — step-by-step guides, training, internal SOPs
 
-**The 4-step pipeline:**
+**The 3-step pipeline:**
 
 1. **Scripting** — form data + LLM rewrite → `script.json`. (Or use a `presetScript` for curated scripts.)
-2. **TTS** — Edge-TTS generates per-scene audio, measures actual duration → `durations.json`
-3. **Asset generation** — Optional Satori step (currently no-op; templates generate visuals dynamically)
-4. **Render** — Playwright + headless Chromium opens an HTML template, records the animated playback, ffmpeg-static muxes with audio → MP4
+2. **TTS** — Edge-TTS generates per-scene audio, pads each clip to its scene's `duration_ms` with `ffmpeg apad` → per-scene `mp3`.
+3. **Render** — Playwright + headless Chromium opens an HTML template. By default the renderer is **deterministic** (`window.__seek` + per-frame screenshot → ffmpeg PNG stream → MP4); the realtime fallback (`recordVideo` webm) is opt-in via `DETERMINISTIC_RENDER=0`. ffmpeg-static muxes the audio track.
 
 ---
 
@@ -54,7 +53,7 @@ npm start
 **Requirements:** Node.js ≥ 20, Python 3.9+.
 **Optional:** Python `edge-tts` (recommended for audio).
 
-The first render takes ~3 min (Playwright downloads Chromium + TTS for all scenes); subsequent renders are ~1.5-2.5× realtime.
+The first render takes ~3 min (Playwright downloads Chromium + TTS for all scenes). Subsequent renders scale with the video's total duration in **deterministic mode** (one Playwright screenshot per frame at the chosen `fps`), and ~1.5–2.5× realtime in the **realtime fallback** mode.
 
 ---
 
@@ -108,6 +107,8 @@ curl http://localhost:3000/api/status/abc123def
 curl -O http://localhost:3000/api/download/abc123def
 ```
 
+**Output filename is sanitized server-side.** The optional `outputFilename` field accepts only letters, digits, `_`, `-`, and spaces (max 80 chars); the `.mp4` extension is appended by the server. Path traversal attempts are rejected with HTTP 400.
+
 Full spec: [`docs/api.md`](docs/api.md)
 
 ---
@@ -118,9 +119,9 @@ Three real MP4s rendered end-to-end via the live server, committed to the repo:
 
 | Sample | Template | Duration | Size | Link |
 |---|---|---|---|---|
-| How HTTPS Works | Tech Explainer | 87s | 1.5 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
-| Một ngày của lập trình viên | Promo / Ad | 61s | 1.2 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
-| 5 Git commands cứu mạng bạn | Tutorial | 102s | 0.7 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
+| How HTTPS Works | Tech Explainer | 95.9s | 3.59 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
+| Một ngày của lập trình viên | Promo / Ad | 69.9s | 2.43 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
+| 5 Git commands cứu mạng bạn | Tutorial | 110.9s | 0.75 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
 
 Each sample folder has the hand-written `script.json` used by the pipeline — useful for debugging, replay, or as a starting template for new demos.
 
@@ -146,12 +147,13 @@ fine-video-as-code/
 │   ├── server.js          # Fastify entry, port 3000
 │   ├── routes/            # generate, status (SSE), download
 │   ├── lib/               # schema, job-store, job-queue, llm-client
-│   ├── workflow/          # step1-script, step2-tts, step3-assets, step4-render
-│   └── templates/         # 3 HTML templates for Playwright rendering
+│   ├── workflow/          # step1-script, step2-tts, step4-render
+│   └── templates/         # 3 HTML templates + shared engine
+│       ├── _engine.js     # window.fineVideoEngine — brand CSS vars, __seek, visual_cues
 │       ├── tech-explainer.html
 │       ├── promo.html
 │       └── tutorial.html
-├── samples/               # 3 demo videos (rendered, ~3.4 MB total)
+├── samples/               # 3 demo videos (rendered, ~6.77 MB total)
 │   ├── 01-how-https-works/
 │   ├── 02-a-day-in-code/
 │   └── 03-git-5-commands/
@@ -177,6 +179,7 @@ fine-video-as-code/
 | **M6** | Migrate to MIT-clean rendering engine (Playwright + HTML) | ✅ |
 | **M7** | Hand-written curated samples (3 invested scripts) | ✅ |
 | **M8** | Git history cleanup (rewrite commit messages) | ✅ |
+| **M9** | Audio/video sync fix + visual cues + deterministic render | ✅ |
 
 All milestones done. The system runs end-to-end on a fresh `npm install && npm start`.
 
@@ -185,11 +188,11 @@ All milestones done. The system runs end-to-end on a fresh `npm install && npm s
 ## Known limitations
 
 - **First render takes ~3 min** — Playwright downloads Chromium on first run (~150MB). Cached after.
-- **TTS is silent if `edge-tts` is missing** — `pip install edge-tts` to enable. Silent fallback keeps the rest of the pipeline working.
-- **Asset step is a no-op** — Templates generate visuals dynamically; PNG assets aren't required.
+- **TTS is silent if `edge-tts` is missing** — the server falls back to a silent MP3 (`anullsrc`) and emits a `tts_failed:scene-N` warning in the SSE `complete` event. The video still renders, just without narration.
 - **No background music yet** — UI has a checkbox, but no implementation.
 - **Single-process queue** — concurrency=1; one video at a time. Swap to BullMQ for scale.
 - **No auth** — intended for local use. Add a reverse proxy for production.
+- **Voice list is curated, not open** — voices are validated against a per-language Zod enum (`vi-VN-HoaiMyNeural`, `vi-VN-NamMinhNeural`; `en-US-AriaNeural`, `en-US-GuyNeural`, `en-US-JennyNeural`). Unknown voices return HTTP 400.
 
 ---
 

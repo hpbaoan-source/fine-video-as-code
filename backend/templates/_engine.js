@@ -160,6 +160,19 @@ window.fineVideoEngine = (() => {
     return id;
   }
 
+  // For deterministic render: kill every CSS transition so that
+  // a `__seek(t)` snap takes effect immediately and the very next
+  // paint frame already shows the post-seek state. Without this,
+  // the browser is still mid-transition when the screenshot fires
+  // and the captured pixel depends on its animation clock — which
+  // varies by a few ms between runs, breaking bit-for-bit
+  // reproducibility.
+  function freezeTransitions() {
+    const style = document.createElement("style");
+    style.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
+    document.head.appendChild(style);
+  }
+
   return {
     applyBrand,
     buildStage,
@@ -168,5 +181,6 @@ window.fineVideoEngine = (() => {
     runRealtime,
     defaultCueRenderer,
     escapeHtml,
+    freezeTransitions,
   };
 })();

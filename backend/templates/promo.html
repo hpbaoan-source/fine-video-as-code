@@ -45,10 +45,12 @@
     const E = window.fineVideoEngine;
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
+    const isDeterministic = params.get('deterministic') === '1';
     const data = await (await fetch(params.get('data') || 'data.json')).json();
     E.applyBrand(data.brand || {});
     document.getElementById('topic').textContent = data.topic;
     const stage = document.getElementById('stage');
+    if (isDeterministic) E.freezeTransitions();
     const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
       const cue = (s.visual_cues || []).find((c) => c.type === 'icon') || (s.visual_cues || [])[0];
       const cueHtml = cue ? `<div class="cue"><div class="cue-icon">${E.escapeHtml((cue.content||'').slice(0,2).toUpperCase())}</div></div>` : '';
@@ -65,7 +67,7 @@
     const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
     window.__seek = seek;
     window.__duration = () => timeline.totalMs;
-    if (isRender) {
+    if (isRender && !isDeterministic) {
       const t0Start = performance.now();
       // Promo also has a pulse ring size per scene.
       const sizes = [1200, 800, 1000, 600, 1100];

@@ -257,7 +257,7 @@ async function renderDeterministic(templateFile, sceneData, port, framesDir, fra
       if (msg.type() === "error") onLog?.(`[console] ${msg.text()}`);
     });
 
-    const url = `http://127.0.0.1:${port}/${templateFile}?render=1&data=_data/data.json`;
+    const url = `http://127.0.0.1:${port}/${templateFile}?render=1&deterministic=1&data=_data/data.json`;
     onLog?.(`Loading ${templateFile}...`);
     await page.goto(url, { waitUntil: "domcontentloaded" });
     // Wait for the engine to be ready and DOM to be built.

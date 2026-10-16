@@ -48,10 +48,12 @@
     const E = window.fineVideoEngine;
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
+    const isDeterministic = params.get('deterministic') === '1';
     const data = await (await fetch(params.get('data') || 'data.json')).json();
     E.applyBrand(data.brand || {});
     document.getElementById('topicText').textContent = data.topic;
     const stage = document.getElementById('stage');
+    if (isDeterministic) E.freezeTransitions();
     const progressFill = document.getElementById('progressFill');
     const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
       const codeCue = (s.visual_cues || []).find((c) => c.type === 'code');
@@ -70,7 +72,7 @@
     const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
     window.__seek = seek;
     window.__duration = () => timeline.totalMs;
-    if (isRender) {
+    if (isRender && !isDeterministic) {
       const t0Start = performance.now();
       const origSeek = seek;
       const seekWithProgress = (tMs) => {

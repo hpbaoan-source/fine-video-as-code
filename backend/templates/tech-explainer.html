@@ -41,10 +41,16 @@
     const E = window.fineVideoEngine;
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
+    const isDeterministic = params.get('deterministic') === '1';
     const data = await (await fetch(params.get('data') || 'data.json')).json();
     E.applyBrand(data.brand || {});
     document.getElementById('topic').textContent = data.topic;
     const stage = document.getElementById('stage');
+    // In deterministic mode, kill CSS transitions and animations
+    // so `__seek(t)` takes effect on the very next paint — that's
+    // what makes the output bit-for-bit reproducible. In realtime
+    // mode we keep transitions for smooth playback.
+    if (isDeterministic) E.freezeTransitions();
     const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
       const cue = (s.visual_cues || []).find((c) => c.type === 'icon') || (s.visual_cues || [])[0];
       const cueHtml = cue ? `<div class="cue"><div class="cue-icon">${E.escapeHtml((cue.content||'').slice(0,2).toUpperCase())}</div></div>` : '';
@@ -59,7 +65,7 @@
     const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
     window.__seek = seek;
     window.__duration = () => timeline.totalMs;
-    if (isRender) {
+    if (isRender && !isDeterministic) {
       E.runRealtime(seek, timeline.totalMs, () => {
         window.__t0_offset_ms = performance.now() - t0Start;
         window.__renderDone = true;

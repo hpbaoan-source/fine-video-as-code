@@ -1,88 +1,151 @@
 # API Reference
 
-> **Status:** 🚧 Placeholder — full spec sẽ được bổ sung ở Phase 1 (Backend core).
+> **Status:** ✅ Live. All endpoints implemented and covered by `node --test`.
+
+The server is a Fastify app on port 3000 by default (`PORT` env var to override). It exposes a single job-based API: one POST kicks off a 3-step pipeline (scripting → TTS → render) and the client streams progress over Server-Sent Events.
+
+---
 
 ## Endpoints
 
 ### `POST /api/generate`
 
-Tạo job mới từ form data.
+Create a new video job.
 
-**Request body:**
+**Request body (Zod-validated, partial — every field has a default):**
 
-```json
-{
-  "topic": "Giải thích Cloud Computing",
-  "template": "tech-explainer",
-  "language": "vi",
-  "voice": "vi-VN-HoaiMyNeural",
-  "duration": 60,
-  "fps": 30,
-  "resolution": "1080p",
-  "aspectRatio": "16:9",
-  "brandColor": "#3B82F6",
-  "accentColor": "#F59E0B",
-  "fontFamily": "Inter",
-  "backgroundMusic": false,
-  "maxScenes": 6,
-  "aiModel": "gemini-flash",
-  "outputFilename": ""
-}
-```
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `topic` | string | — | Free-text topic. Used when `presetScript` is omitted. |
+| `presetScript` | string (path) | — | Path to a hand-written `script.json` under the project. Skips the LLM step. Path must be inside the samples/ or scripts/ folder (validated by `isPathInside`). |
+| `template` | enum | `tech-explainer` | `tech-explainer` \| `promo` \| `tutorial` |
+| `language` | enum | `vi` | `vi` \| `en` |
+| `voice` | enum | `vi-VN-HoaiMyNeural` | See [Voice enum](#voice-enum) below. Unknown values → HTTP 400. |
+| `duration` | int (seconds) | 60 | Target total length. Hint for the LLM, not a hard cap. |
+| `fps` | int | 30 | Frames per second for the deterministic render path. |
+| `deterministic` | bool | `true` | If `true`, the renderer drives the page via `window.__seek` and screenshots per frame (bit-for-bit reproducible for identical input). If `false`, uses Playwright `recordVideo` and webm → mp4 (faster on slow machines, but not reproducible). Overridable by env: `DETERMINISTIC_RENDER=0`. |
+| `brandColor` | hex | `#3B82F6` | Injected as `--brand` CSS var in the template. |
+| `accentColor` | hex | `#F59E0B` | Injected as `--accent` CSS var. |
+| `fontFamily` | string | `Inter` | Sets `body { font-family }`. |
+| `outputFilename` | string | `null` | Optional. Must match `^[\w\- ]{1,80}$` — letters, digits, `_`, `-`, and spaces only, no path separators, no extension. The `.mp4` extension is appended server-side. Path traversal attempts → HTTP 400. |
+| `maxScenes` | int 2-20 | 6 | Cap on scene count when LLM generates the script. |
+| `aiModel` | string | `default` | Selects a configured LLM preset (see `backend/lib/llm-client.js`). |
 
 **Response 200:**
 
 ```json
+{ "jobId": "abc123def", "statusUrl": "/api/status/abc123def", "downloadUrl": "/api/download/abc123def" }
+```
+
+**Response 400 (validation):**
+
+```json
 {
-  "jobId": "abc123",
-  "statusUrl": "/api/status/abc123",
-  "downloadUrl": "/api/download/abc123"
+  "error": "validation_failed",
+  "details": [
+    { "path": "voice", "message": "Invalid enum value. Expected 'vi-VN-HoaiMyNeural' | ..." }
+  ]
 }
 ```
 
+---
+
 ### `GET /api/status/:jobId` — Server-Sent Events
+
+Streams job progress until the job is `complete` or `failed`. The stream closes after the terminal event.
 
 **Event types:**
 
-- `step-start` — `{ step, name }`
-- `step-progress` — `{ step, percent }`
-- `step-done` — `{ step, output }`
-- `log` — `{ message }`
-- `complete` — `{ downloadUrl, duration }`
-- `error` — `{ message }`
+| Event | Payload | When |
+|---|---|---|
+| `step-start` | `{ step: 1, name: "script" }` | A workflow step begins. |
+| `step-progress` | `{ step, percent: 0-100 }` | Progress within a step. |
+| `step-done` | `{ step, output }` | A step finished successfully. |
+| `log` | `{ message }` | Free-form log line (e.g. ffmpeg progress, TTS duration). |
+| `complete` | `{ downloadUrl, duration, warnings? }` | Final event. `warnings` is an array — currently `["tts_failed:scene-N"]` if a TTS clip fell back to silence. |
+| `error` | `{ message }` | Terminal failure. Stream closes after this. |
+
+**Example stream:**
+
+```
+event: step-start
+data: {"step":1,"name":"script"}
+
+event: step-progress
+data: {"step":1,"percent":50}
+
+event: step-done
+data: {"step":1,"output":{"scenes":5}}
+
+event: step-start
+data: {"step":2,"name":"tts"}
+
+event: log
+data: {"message":"TTS: scene-1 = 4.32s"}
+
+event: step-done
+data: {"step":2,"output":{}}
+
+event: step-start
+data: {"step":4,"name":"render"}
+
+event: log
+data: {"message":"Deterministic: 285 frames @ 30fps (9.5s)"}
+
+event: log
+data: {"message":"✓ Final MP4: how-https-works.mp4 (3678.5 KB)"}
+
+event: complete
+data: {"downloadUrl":"/api/download/abc123def","duration":9.5}
+```
+
+---
 
 ### `GET /api/download/:jobId`
 
-Trả về file `video/mp4`.
+Returns the rendered MP4 as `video/mp4` with `Content-Disposition: attachment; filename="<outputFilename>.mp4"`. Job is deleted after successful download (single-shot).
+
+---
 
 ### `GET /health`
 
-Health check — trả về `{ status: "ok", version: "0.1.0" }`.
+Health check — returns `{ status: "ok", version: "0.1.0" }`.
 
-## Validation
+---
 
-Tất cả input được validate bằng Zod schema. Lỗi trả về 400 với message chi tiết.
+## Voice enum
+
+Validated against a Zod enum per language. Unknown values are rejected with HTTP 400 before the job is queued.
+
+| Language | Voices |
+|---|---|
+| `vi` | `vi-VN-HoaiMyNeural` (default), `vi-VN-NamMinhNeural` |
+| `en` | `en-US-AriaNeural` (default), `en-US-GuyNeural`, `en-US-JennyNeural` |
+
+---
 
 ## Error codes
 
 | Code | Meaning |
 |---|---|
-| 400 | Validation failed |
-| 404 | Job not found |
-| 410 | Job expired (after download) |
-| 500 | Internal error (workflow crash) |
-| 503 | Job queue full (quota exceeded) |
+| 400 | Validation failed (Zod schema or path-traversal) |
+| 404 | Job not found or already downloaded |
+| 500 | Internal error (workflow crash, ffmpeg failure) |
+| 503 | Job queue full (single-process, concurrency=1) |
+
+---
 
 ## Default values
 
-Defaults are neutral and overridable per-job. The values below are what users get when they don't touch the advanced options:
-
 | Field | Default | Notes |
 |---|---|---|
+| `template` | `tech-explainer` | — |
+| `language` | `vi` | — |
+| `voice` | `vi-VN-HoaiMyNeural` | Per-language default; see Voice enum |
+| `duration` | `60` | Seconds (hint) |
+| `fps` | `30` | Deterministic mode only |
+| `deterministic` | `true` | Use `DETERMINISTIC_RENDER=0` to flip globally |
 | `brandColor` | `#3B82F6` | Blue-500 (neutral, professional) |
 | `accentColor` | `#F59E0B` | Amber-500 (warm) |
 | `fontFamily` | `Inter` | Open-source, multilingual |
-| `fps` | `30` | Standard web video |
-| `resolution` | `1080p` | 1920×1080 |
-| `aspectRatio` | `16:9` | YouTube / web standard |
 | `maxScenes` | `6` | Keeps videos tight |
