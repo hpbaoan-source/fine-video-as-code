@@ -33,6 +33,9 @@ build/
 *.pem
 secrets/
 github_access_token.txt
+docs/github-support-ticket-dangling-objects.md
+fine-video-as-code.zip
+
 *-token.txt
 *_token.txt
 
