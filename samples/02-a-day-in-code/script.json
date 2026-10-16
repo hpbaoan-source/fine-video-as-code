@@ -1,0 +1,54 @@
+{
+  "id": "02-a-day-in-code",
+  "template": "promo",
+  "language": "vi",
+  "voice": "vi-VN-HoaiMyNeural",
+  "meta": {
+    "topic": "Một ngày của lập trình viên",
+    "description": "60 giây xuyên qua một ngày code: sáng cafe, trưa debug, chiều ship, tối tự hào nhìn lại."
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "heading": "6:00 SA",
+      "voiceover": "Sáu giờ sáng. Tách cà phê đen đầu tiên. Mở máy, mở IDE, mở Jira. Bảy mươi tám ticket đang chờ. Bạn chọn một ticket nhỏ để bắt đầu — đừng cố làm tất cả.",
+      "duration_ms": 12000,
+      "visual_cue": "TODO list + IDE"
+    },
+    {
+      "id": "scene-2",
+      "heading": "9:00 — Flow state",
+      "voiceover": "Chín giờ, code chạy. Nhạc lo-fi, mắt dán vào màn hình. Hai tiếng trôi như hai phút. Bạn viết test, viết code, viết lại code. Lần này nó compile.",
+      "duration_ms": 11000,
+      "visual_cue": "lo-fi + terminal"
+    },
+    {
+      "id": "scene-3",
+      "heading": "12:30 — Debug hell",
+      "voiceover": "Mười hai rưỡi. Bug xuất hiện ở production. Bạn mở log, mở debugger, mở Stack Overflow. Bốn mươi lăm phút sau, hóa ra là dấu phẩy. Cổ điển.",
+      "duration_ms": 12000,
+      "visual_cue": "bug + log + Stack Overflow"
+    },
+    {
+      "id": "scene-4",
+      "heading": "15:00 — Code review",
+      "voiceover": "Ba giờ chiều. Bạn review code đồng đội — không phải để tìm lỗi, mà để học cách họ nghĩ. Bạn để lại ba comment, hai suggestion, một lời khen. Review xong, họ cũng review bạn.",
+      "duration_ms": 12000,
+      "visual_cue": "PR review"
+    },
+    {
+      "id": "scene-5",
+      "heading": "18:00 — Ship it",
+      "voiceover": "Sáu giờ chiều. Merge. CI chạy xanh. Bạn deploy lên staging. Bạn thở. Đó không phải chỉ là code — đó là hàng nghìn người dùng sẽ dùng tính năng bạn viết hôm nay.",
+      "duration_ms": 12000,
+      "visual_cue": "deploy + CI green"
+    },
+    {
+      "id": "scene-6",
+      "heading": "Mỗi ngày là một viên gạch",
+      "voiceover": "Ngày mai bạn sẽ lặp lại. Và đó là điều tuyệt vời — mỗi dòng code là một viên gạch nhỏ xây nên thứ lớn hơn. Bắt đầu hành trình dev của bạn ngay hôm nay.",
+      "duration_ms": 11000,
+      "visual_cue": "code stack building up"
+    }
+  ]
+}

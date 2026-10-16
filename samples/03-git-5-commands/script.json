@@ -1,0 +1,61 @@
+{
+  "id": "03-git-5-commands",
+  "template": "tutorial",
+  "language": "vi",
+  "voice": "vi-VN-HoaiMyNeural",
+  "meta": {
+    "topic": "5 Git commands cứu mạng bạn",
+    "description": "Năm lệnh Git mà mọi dev nên biết — từ undo commit đến tìm bug trong 5 phút."
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "heading": "5 lệnh Git bạn ước biết sớm hơn",
+      "voiceover": "Bạn dùng Git mỗi ngày, nhưng có những lệnh ít người biết mà một khi thành thạo, bạn sẽ không bao giờ muốn quay lại cách cũ. Đây là năm lệnh như vậy.",
+      "duration_ms": 13000,
+      "visual_cue": "intro hook"
+    },
+    {
+      "id": "scene-2",
+      "heading": "1. git reflog",
+      "voiceover": "Lệnh đầu tiên: git reflog. Bạn lỡ tay reset sai branch? Bạn xóa commit nhầm? Reflog ghi lại mọi di chuyển HEAD của bạn. Tìm SHA commit đó, git reset lại, xong.",
+      "duration_ms": 16000,
+      "visual_cue": "reflog timeline"
+    },
+    {
+      "id": "scene-3",
+      "heading": "2. git bisect",
+      "voiceover": "Lệnh hai: git bisect. Khi bug xuất hiện mà bạn không biết từ commit nào. Bisect dùng tìm kiếm nhị phân trong lịch sử commit, hỏi bạn commit này tốt hay xấu, để khoanh vùng commit gây lỗi trong vài phút.",
+      "duration_ms": 18000,
+      "visual_cue": "binary search visualization"
+    },
+    {
+      "id": "scene-4",
+      "heading": "3. git stash",
+      "voiceover": "Lệnh ba: git stash. Đang code dở thì sếp gọi fix bug gấp trên branch khác. Stash lại toàn bộ thay đổi, switch branch, fix xong, pop stash quay lại. Tất cả chỉ trong ba phát gõ.",
+      "duration_ms": 16000,
+      "visual_cue": "stash push/pop"
+    },
+    {
+      "id": "scene-5",
+      "heading": "4. git worktree",
+      "voiceover": "Lệnh bốn: git worktree. Bạn muốn làm hai việc song song trên hai branch khác nhau mà không cần clone repo lần hai. Worktree tạo ra một working tree mới trong cùng repo.",
+      "duration_ms": 16000,
+      "visual_cue": "two worktrees side by side"
+    },
+    {
+      "id": "scene-6",
+      "heading": "5. git rebase -i",
+      "voiceover": "Lệnh năm: git rebase với cờ interactive. Bạn có năm commit lộn xộn trên branch. Rebase cho phép gộp, sửa message, đảo thứ tự. Khi xong, lịch sử branch gọn như đã viết ngay từ đầu.",
+      "duration_ms": 16000,
+      "visual_cue": "interactive rebase list"
+    },
+    {
+      "id": "scene-7",
+      "heading": "Tổng kết",
+      "voiceover": "Năm lệnh: reflog để cứu, bisect để tìm bug, stash để gạt qua, worktree để làm song song, rebase để dọn dẹp. Thuộc lòng năm lệnh này, bạn đã ở top 5 phần trăm dev biết Git thật sự.",
+      "duration_ms": 16000,
+      "visual_cue": "summary card"
+    }
+  ]
+}

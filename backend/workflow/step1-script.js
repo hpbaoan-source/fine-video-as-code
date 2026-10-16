@@ -219,6 +219,50 @@ Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
 export async function step1Script(input, { onProgress, onLog } = {}) {
   onLog?.("Building template structure...");
   onProgress?.(10);
+
+  // ─── Preset script shortcut (used by demos and curated samples) ──
+  if (input.presetScript) {
+    const { readFileSync } = await import("node:fs");
+    const path = await import("node:path");
+    const fp = path.isAbsolute(input.presetScript)
+      ? input.presetScript
+      : path.join(process.cwd(), input.presetScript);
+    const preset = JSON.parse(readFileSync(fp, "utf8"));
+    onLog?.(`Using preset script: ${fp} (${preset.scenes.length} scenes)`);
+    onProgress?.(60);
+    // Normalize scene shape to match the schema (id, voiceover, duration_ms required)
+    const target = input.duration * 1000;
+    const sum = preset.scenes.reduce((s, sc) => s + (sc.duration_ms || 0), 0);
+    const ratio = sum > 0 && Math.abs(sum - target) > 100 ? target / sum : 1;
+    let acc = 0;
+    const scenes = preset.scenes.map((s, i) => {
+      let ms = Math.round((s.duration_ms || 0) * ratio);
+      if (i === preset.scenes.length - 1) ms = target - acc;
+      acc += ms;
+      return {
+        id: s.id || `scene-${i + 1}`,
+        voiceover: s.voiceover,
+        duration_ms: ms,
+        visual_cues: s.visual_cues || [{ type: "text", content: s.heading, position: "center", animation: "fade" }],
+        on_screen_text: s.heading || s.voiceover?.slice(0, 40),
+        heading: s.heading,  // used by step 4 for big card
+      };
+    });
+    onProgress?.(100);
+    return ScriptSchema.parse({
+      template: preset.template || input.template,
+      language: preset.language || input.language,
+      total_duration_ms: target,
+      scenes,
+      meta: {
+        generated_by: "preset",
+        generated_at: new Date().toISOString(),
+        topic: preset.meta?.topic || input.topic,
+        description: preset.meta?.description,
+      },
+    });
+  }
+
   const draft = buildTemplateScript(input);
   onProgress?.(40);
   onLog?.(`Generated ${draft.scenes.length} scenes (${draft.total_duration_ms}ms total)`);

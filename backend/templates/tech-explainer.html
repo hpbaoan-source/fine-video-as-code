@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Tech Explainer — fine-video-as-code</title>
+<style>
+  :root {
+    --brand: #3B82F6;
+    --accent: #F59E0B;
+    --text: #E5E7EB;
+    --dim: #9CA3AF;
+    --bg: #0f1115;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+  body { position: relative; }
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 80px; }
+  .topic { position: absolute; top: 60px; left: 80px; font-size: 24px; letter-spacing: 4px; color: var(--dim); text-transform: uppercase; font-weight: 500; opacity: 0; }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; }
+  .scene .heading { font-size: 92px; font-weight: 800; line-height: 1.1; text-align: center; max-width: 1700px; opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
+  .scene .voiceover { font-size: 44px; color: var(--dim); margin-top: 50px; text-align: center; max-width: 1600px; line-height: 1.5; opacity: 0; transform: translateY(20px); transition: opacity 0.7s ease-out 0.3s, transform 0.7s ease-out 0.3s; }
+  .scene .step-marker { position: absolute; bottom: 60px; right: 80px; font-size: 24px; color: var(--accent); font-weight: 600; letter-spacing: 2px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
+  .scene.active { opacity: 1; }
+  .scene.active .heading, .scene.active .voiceover, .scene.active .step-marker { opacity: 1; transform: translateY(0); }
+  .scene.exiting .heading, .scene.exiting .voiceover { opacity: 0; transform: translateY(-10px); transition: opacity 0.5s ease-in, transform 0.5s ease-in; }
+  .topic.show { opacity: 0.7; transition: opacity 0.6s ease-out 0.3s; }
+  /* Decorative lines (sweep in for each scene) */
+  .lines { position: absolute; inset: 0; pointer-events: none; opacity: 0; transition: opacity 0.4s; }
+  .lines.show { opacity: 0.25; }
+  .lines::before, .lines::after { content: ''; position: absolute; left: 0; right: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--brand) 50%, transparent); }
+  .lines::before { top: 0; }
+  .lines::after { bottom: 0; }
+</style>
+</head>
+<body>
+  <div class="lines" id="lines"></div>
+  <div class="topic" id="topic"></div>
+  <div class="stage" id="stage"></div>
+
+  <script>
+  // Load data.json (served from same dir)
+  async function main() {
+    const params = new URLSearchParams(location.search);
+    const isRender = params.get('render') === '1';
+    const dataUrl = params.get('data') || 'data.json';
+    const res = await fetch(dataUrl);
+    const data = await res.json();
+
+    const totalMs = data.scenes.reduce((a, s) => a + s.duration_ms, 0);
+
+    document.getElementById('topic').textContent = data.topic;
+    const stage = document.getElementById('stage');
+
+    // Pre-build scene elements
+    const sceneEls = data.scenes.map((s, i) => {
+      const el = document.createElement('div');
+      el.className = 'scene';
+      el.innerHTML = `
+        <div class="heading">${escapeHtml(s.heading)}</div>
+        <div class="voiceover">${escapeHtml(s.voiceover)}</div>
+        <div class="step-marker">${String(i+1).padStart(2,'0')} / ${String(data.scenes.length).padStart(2,'0')}</div>
+      `;
+      stage.appendChild(el);
+      return el;
+    });
+
+    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    // Animation timeline
+    let cumulative = 0;
+    const transitions = []; // ordered events
+
+    for (let i = 0; i < sceneEls.length; i++) {
+      const s = data.scenes[i];
+      const intro = 0.5;
+      const outro = 0.4;
+      const hold = s.duration_ms / 1000 - intro - outro;
+      const at = cumulative / 1000;
+      transitions.push({ at, do: () => {
+        sceneEls.forEach((e, j) => e.classList.toggle('active', j === i));
+        if (i === 0) document.getElementById('topic').classList.add('show');
+        document.getElementById('lines').classList.add('show');
+      }});
+      cumulative += (s.duration_ms - outro * 1000);
+      transitions.push({ at: cumulative / 1000, do: () => {
+        sceneEls[i].classList.add('exiting');
+        document.getElementById('lines').classList.remove('show');
+      }});
+      cumulative += outro * 1000;
+    }
+
+    // Outro: clear topic
+    transitions.push({ at: totalMs / 1000 - 0.6, do: () => {
+      document.getElementById('topic').classList.remove('show');
+    }});
+
+    function schedule() {
+      const t0 = performance.now();
+      const timer = setInterval(() => {
+        const elapsed = (performance.now() - t0) / 1000;
+        while (transitions.length && transitions[0].at <= elapsed) {
+          transitions.shift().do();
+        }
+        if (elapsed >= totalMs / 1000) {
+          clearInterval(timer);
+          if (isRender) window.__renderDone = true;
+        }
+      }, 30);
+    }
+
+    schedule();
+  }
+  main();
+  </script>
+</body>
+</html>

@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Promo — fine-video-as-code</title>
+<style>
+  :root {
+    --brand: #3B82F6;
+    --accent: #F59E0B;
+    --text: #FFFFFF;
+    --dim: #D1D5DB;
+    --bg: #0a0c10;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+  body { position: relative; }
+  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .topic { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 26px; letter-spacing: 8px; color: var(--accent); text-transform: uppercase; font-weight: 600; opacity: 0; transition: opacity 0.5s; z-index: 10; }
+  .topic.show { opacity: 1; }
+  /* Background pulse dot */
+  .pulse { position: absolute; top: 50%; left: 50%; width: 1000px; height: 1000px; margin: -500px 0 0 -500px; background: radial-gradient(circle, var(--brand) 0%, transparent 70%); opacity: 0.18; transition: transform 0.6s ease-in-out, opacity 0.4s; }
+  .scene { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; }
+  .scene .heading { font-size: 140px; font-weight: 800; line-height: 1.0; text-align: center; max-width: 1700px; opacity: 0; transform: scale(0.7); transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .scene .voiceover { font-size: 44px; color: var(--dim); margin-top: 60px; text-align: center; max-width: 1500px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.2s; }
+  .cta { position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%) scale(0.9); background: var(--accent); color: var(--bg); font-size: 28px; font-weight: 800; padding: 22px 60px; border-radius: 50px; letter-spacing: 3px; opacity: 0; transition: opacity 0.4s, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
+  .scene.active { opacity: 1; }
+  .scene.active .heading { opacity: 1; transform: scale(1); }
+  .scene.active .voiceover { opacity: 1; }
+  .scene.active .cta { opacity: 1; transform: translateX(-50%) scale(1); }
+  .scene.exiting { opacity: 0; }
+  .scene.exiting .heading { transform: scale(1.15); transition: opacity 0.4s ease-in, transform 0.4s ease-in; }
+</style>
+</head>
+<body>
+  <div class="pulse" id="pulse"></div>
+  <div class="topic" id="topic"></div>
+  <div class="stage" id="stage"></div>
+
+  <script>
+  async function main() {
+    const params = new URLSearchParams(location.search);
+    const isRender = params.get('render') === '1';
+    const dataUrl = params.get('data') || 'data.json';
+    const res = await fetch(dataUrl);
+    const data = await res.json();
+    const totalMs = data.scenes.reduce((a, s) => a + s.duration_ms, 0);
+
+    document.getElementById('topic').textContent = data.topic;
+    const stage = document.getElementById('stage');
+    const pulse = document.getElementById('pulse');
+    const sizes = [1200, 800, 1000, 600, 1100];
+
+    const sceneEls = data.scenes.map((s, i) => {
+      const el = document.createElement('div');
+      el.className = 'scene';
+      el.innerHTML = `
+        <div class="heading">${escapeHtml(s.heading)}</div>
+        <div class="voiceover">${escapeHtml(s.voiceover)}</div>
+        ${i === data.scenes.length - 1 ? '<div class="cta">GET STARTED →</div>' : ''}
+      `;
+      stage.appendChild(el);
+      return el;
+    });
+
+    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+    let cumulative = 0;
+    const transitions = [];
+    for (let i = 0; i < sceneEls.length; i++) {
+      const s = data.scenes[i];
+      const intro = 0.4;
+      const outro = 0.4;
+      const at = cumulative / 1000;
+      transitions.push({ at, do: () => {
+        sceneEls.forEach((e, j) => e.classList.toggle('active', j === i));
+        if (i === 0) document.getElementById('topic').classList.add('show');
+        pulse.style.width = pulse.style.height = sizes[i % sizes.length] + 'px';
+        pulse.style.margin = (-sizes[i % sizes.length] / 2) + 'px 0 0 ' + (-sizes[i % sizes.length] / 2) + 'px';
+      }});
+      cumulative += (s.duration_ms - outro * 1000);
+      transitions.push({ at: cumulative / 1000, do: () => sceneEls[i].classList.add('exiting') });
+      cumulative += outro * 1000;
+    }
+    transitions.push({ at: totalMs / 1000 - 0.6, do: () => {
+      document.getElementById('topic').classList.remove('show');
+    }});
+
+    const t0 = performance.now();
+    const timer = setInterval(() => {
+      const elapsed = (performance.now() - t0) / 1000;
+      while (transitions.length && transitions[0].at <= elapsed) transitions.shift().do();
+      if (elapsed >= totalMs / 1000) {
+        clearInterval(timer);
+        if (isRender) window.__renderDone = true;
+      }
+    }, 30);
+  }
+  main();
+  </script>
+</body>
+</html>

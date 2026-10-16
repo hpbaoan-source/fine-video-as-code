@@ -1,0 +1,61 @@
+{
+  "id": "01-how-https-works",
+  "template": "tech-explainer",
+  "language": "vi",
+  "voice": "vi-VN-HoaiMyNeural",
+  "meta": {
+    "topic": "How HTTPS Works",
+    "description": "Bạn thấy ổ khóa trên thanh địa chỉ mỗi ngày. Nhưng nó thực sự bảo vệ bạn khỏi cái gì, và bằng cách nào?"
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "heading": "Bạn có thấy ổ khóa này?",
+      "voiceover": "Mỗi ngày, hàng tỷ người nhìn thấy biểu tượng ổ khóa này trên thanh địa chỉ. Nhưng nó thực sự đang bảo vệ bạn khỏi điều gì, và bằng cách nào?",
+      "duration_ms": 12000,
+      "visual_cue": "ổ khóa trên URL"
+    },
+    {
+      "id": "scene-2",
+      "heading": "Vấn đề của HTTP thuần",
+      "voiceover": "Khi bạn gửi HTTP, mọi thứ đều đi dưới dạng văn bản thuần. Bất kỳ ai cũng có thể chặn và đọc mật khẩu, số thẻ tín dụng, tin nhắn riêng tư của bạn. Đây gọi là tấn công man-in-the-middle.",
+      "duration_ms": 15000,
+      "visual_cue": "gói tin HTTP bị chặn"
+    },
+    {
+      "id": "scene-3",
+      "heading": "TLS — giao thức bên dưới HTTPS",
+      "voiceover": "HTTPS thêm vào một lớp mã hóa gọi là TLS. Trước khi dữ liệu nào được gửi đi, client và server thực hiện một bắt tay để thống nhất khóa bí mật chung.",
+      "duration_ms": 14000,
+      "visual_cue": "sơ đồ TLS handshake"
+    },
+    {
+      "id": "scene-4",
+      "heading": "Bước 1: Xác minh danh tính server",
+      "voiceover": "Server gửi chứng chỉ số do một bên thứ ba đáng tin cậy ký. Trình duyệt kiểm tra: chứng chỉ có hợp lệ không, có đúng domain không, có bị thu hồi không. Nếu mọi thứ ổn, tin tưởng được.",
+      "duration_ms": 15000,
+      "visual_cue": "chuỗi chứng chỉ + verify"
+    },
+    {
+      "id": "scene-5",
+      "heading": "Bước 2: Trao đổi khóa",
+      "voiceover": "Hai bên dùng thuật toán Diffie-Hellman để tạo ra một khóa bí mật chung mà không bao giờ truyền qua mạng. Ngay cả khi ai đó nghe trộm toàn bộ, họ không thể tính ra khóa.",
+      "duration_ms": 14000,
+      "visual_cue": "Diffie-Hellman visualization"
+    },
+    {
+      "id": "scene-6",
+      "heading": "Bước 3: Mã hóa đối xứng",
+      "voiceover": "Từ đây, mọi byte dữ liệu được mã hóa bằng khóa chung. AES-256, chuẩn vàng hiện tại, có thể chịu được cả siêu máy tính trong hàng triệu năm.",
+      "duration_ms": 14000,
+      "visual_cue": "mã hóa AES"
+    },
+    {
+      "id": "scene-7",
+      "heading": "Tóm lại",
+      "voiceover": "Vậy HTTPS không chỉ là một ổ khóa đẹp. Đó là cả một bài toán mã hóa + xác minh danh tính + toán học, chạy trong tích tắc mỗi lần bạn mở trình duyệt. Một kỳ công thầm lặng.",
+      "duration_ms": 12000,
+      "visual_cue": "summary + ổ khóa"
+    }
+  ]
+}
