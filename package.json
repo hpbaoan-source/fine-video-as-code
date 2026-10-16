@@ -1,0 +1,52 @@
+{
+  "name": "fine-video-as-code",
+  "version": "0.1.0",
+  "description": "Open-source Video-as-Code pipeline. Turn a short topic into a polished explainer video: web form → JSON input → 4-step backend workflow (Remotion + Edge-TTS) → MP4 file. Three built-in templates (Tech Explainer, Promo, Tutorial).",
+  "main": "backend/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev": "node --watch backend/server.js",
+    "build": "echo \"[TODO] Phase 1: Remotion build pipeline\" && exit 0",
+    "render-sample": "node scripts/render-sample.js",
+    "setup": "node scripts/check-deps.js",
+    "test": "echo \"[TODO] Tests will be added in Phase 7\" && exit 0"
+  },
+  "keywords": [
+    "video",
+    "remotion",
+    "tts",
+    "edge-tts",
+    "automation",
+    "ai",
+    "video-as-code",
+    "explainer"
+  ],
+  "author": "Huỳnh Phương Bảo An <hpbaoan@gmail.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hpbaoan-source/fine-video-as-code.git"
+  },
+  "bugs": {
+    "url": "https://github.com/hpbaoan-source/fine-video-as-code/issues"
+  },
+  "dependencies": {
+    "fastify": "^4.28.0",
+    "@fastify/cors": "^9.0.1",
+    "@fastify/static": "^7.0.4",
+    "zod": "^3.23.8",
+    "edge-tts": "^1.1.1",
+    "@remotion/bundler": "^4.0.200",
+    "@remotion/renderer": "^4.0.200",
+    "remotion": "^4.0.200",
+    "execa": "^9.3.1",
+    "nanoid": "^5.0.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  }
+}
