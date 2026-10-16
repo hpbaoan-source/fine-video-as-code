@@ -1,0 +1,102 @@
+{
+  "template": "tech-explainer",
+  "language": "vi",
+  "total_duration_ms": 60000,
+  "scenes": [
+    {
+      "id": "scene-1",
+      "voiceover": "Cloud Computing là gì? Và tại sao nó lại quan trọng đến vậy?",
+      "duration_ms": 7843,
+      "visual_cues": [
+        {
+          "type": "text",
+          "content": "Ask a question that creates curiosity",
+          "position": "center",
+          "animation": "fade"
+        },
+        {
+          "type": "text",
+          "content": "Cloud Computing",
+          "position": "top",
+          "animation": "fade"
+        }
+      ],
+      "on_screen_text": "Cloud Computing là gì Và"
+    },
+    {
+      "id": "scene-2",
+      "voiceover": "Đúng rồi, khái niệm này nghe phức tạp, nhưng thực ra không khó hiểu đâu.",
+      "duration_ms": 9412,
+      "visual_cues": [
+        {
+          "type": "icon",
+          "content": "Describe the pain point the audience feels",
+          "position": "center",
+          "animation": "zoom"
+        }
+      ],
+      "on_screen_text": "Đúng rồi khái niệm này"
+    },
+    {
+      "id": "scene-3",
+      "voiceover": "Nói đơn giản, Cloud Computing hoạt động dựa trên 3 trụ cột chính.",
+      "duration_ms": 8497,
+      "visual_cues": [
+        {
+          "type": "chart",
+          "content": "Introduce the core idea in plain language",
+          "position": "center",
+          "animation": "slide-up"
+        }
+      ],
+      "on_screen_text": "Nói đơn giản Cloud Computing"
+    },
+    {
+      "id": "scene-4",
+      "voiceover": "Một cách dễ hiểu, nó gồm: gửi yêu cầu lên, xử lý yêu cầu đó, và nhận kết quả về.",
+      "duration_ms": 10458,
+      "visual_cues": [
+        {
+          "type": "code",
+          "content": "Explain the mechanism with 2-3 specific details",
+          "position": "center",
+          "animation": "zoom"
+        }
+      ],
+      "on_screen_text": "Một cách dễ hiểu nó"
+    },
+    {
+      "id": "scene-5",
+      "voiceover": "Ví dụ như khi bạn gửi một yêu cầu, hệ thống sẽ xử lý và phản hồi trong tích tắc.",
+      "duration_ms": 10458,
+      "visual_cues": [
+        {
+          "type": "text",
+          "content": "Concrete example showing the idea in action",
+          "position": "center",
+          "animation": "slide-up"
+        }
+      ],
+      "on_screen_text": "Ví dụ như khi bạn"
+    },
+    {
+      "id": "scene-6",
+      "voiceover": "Tóm lại, nắm được Cloud Computing giúp bạn làm việc hiệu quả hơn rất nhiều. Bắt đầu ngay hôm nay thôi!",
+      "duration_ms": 13332,
+      "visual_cues": [
+        {
+          "type": "icon",
+          "content": "Recap + a clear next step the viewer can take",
+          "position": "center",
+          "animation": "zoom"
+        }
+      ],
+      "on_screen_text": "Tóm lại nắm được Cloud"
+    }
+  ],
+  "meta": {
+    "generated_by": "template+llm",
+    "generated_at": "2026-10-16T07:03:17.434Z",
+    "topic": "Cloud Computing"
+  }
+}

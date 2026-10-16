@@ -1,10 +1,11 @@
-# API routes
+# Backend routes
 
-> **Status:** 🚧 Placeholder — sẽ wire up ở Phase 1.
+Fastify route modules, each exported as a default async function `(fastify) => { ... }`.
 
-Planned files:
+| File | Prefix | Endpoints |
+|---|---|---|
+| `generate.js`  | `/api` | `POST /api/generate`, `GET /api/voices` |
+| `status.js`    | `/api` | `GET /api/status/:jobId` (SSE), `GET /api/status/:jobId/snapshot` |
+| `download.js`  | `/api` | `GET /api/download/:jobId`, `GET /api/jobs` |
 
-- `generate.js` — `POST /api/generate`
-- `status.js` — `GET /api/status/:jobId` (SSE)
-- `download.js` — `GET /api/download/:jobId`
-- `health.js` — `GET /health` (currently inline in `server.js`)
+All routes are registered in `server.js` with the `/api` prefix.

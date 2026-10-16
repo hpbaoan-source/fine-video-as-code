@@ -1,0 +1,88 @@
+{
+  "template": "promo",
+  "language": "vi",
+  "total_duration_ms": 30000,
+  "scenes": [
+    {
+      "id": "scene-1",
+      "voiceover": "FlowDesk — không gian làm việc cho team phân tán? Nghe hay đấy, nhưng thực hư ra sao?",
+      "duration_ms": 6641,
+      "visual_cues": [
+        {
+          "type": "text",
+          "content": "Bold claim or striking question (3s max)",
+          "position": "center",
+          "animation": "fade"
+        },
+        {
+          "type": "text",
+          "content": "FlowDesk — collaborative workspace for distributed teams",
+          "position": "top",
+          "animation": "fade"
+        }
+      ],
+      "on_screen_text": "FlowDesk — không gian làm"
+    },
+    {
+      "id": "scene-2",
+      "voiceover": "Mỗi ngày nhảy qua hàng chục app, cuộc họp chồng chéo, tin nhắn loạn xạ... chán không?",
+      "duration_ms": 6641,
+      "visual_cues": [
+        {
+          "type": "shape",
+          "content": "Show the frustration the product solves",
+          "position": "center",
+          "animation": "zoom"
+        }
+      ],
+      "on_screen_text": "Mỗi ngày nhảy qua hàng"
+    },
+    {
+      "id": "scene-3",
+      "voiceover": "Giờ đây, mọi thứ gom về một chỗ. FlowDesk — không gian làm việc thống nhất cho team của bạn.",
+      "duration_ms": 7188,
+      "visual_cues": [
+        {
+          "type": "icon",
+          "content": "Reveal the product as the answer",
+          "position": "center",
+          "animation": "slide-up"
+        }
+      ],
+      "on_screen_text": "Giờ đây mọi thứ gom"
+    },
+    {
+      "id": "scene-4",
+      "voiceover": "Cộng tác thời gian thực. Tích hợp đa nền tảng. Di động mọi lúc mọi nơi.",
+      "duration_ms": 5547,
+      "visual_cues": [
+        {
+          "type": "text",
+          "content": "3 quick benefits with one word each",
+          "position": "center",
+          "animation": "zoom"
+        }
+      ],
+      "on_screen_text": "Cộng tác thời gian thực"
+    },
+    {
+      "id": "scene-5",
+      "voiceover": "Dùng thử miễn phí 14 ngày — không cần thẻ tín dụng.",
+      "duration_ms": 3983,
+      "visual_cues": [
+        {
+          "type": "shape",
+          "content": "Strong call to action with offer",
+          "position": "center",
+          "animation": "slide-up"
+        }
+      ],
+      "on_screen_text": "Dùng thử miễn phí 14"
+    }
+  ],
+  "meta": {
+    "generated_by": "template+llm",
+    "generated_at": "2026-10-16T07:07:13.298Z",
+    "topic": "FlowDesk — collaborative workspace for distributed teams"
+  }
+}

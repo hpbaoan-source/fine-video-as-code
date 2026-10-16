@@ -1,18 +1,11 @@
-# Remotion templates
+# Backend templates
 
-> **Status:** 🚧 Placeholder — sẽ implement ở Phase 3.
+Remotion composition entry points, one per built-in template.
 
-Mỗi template là một Remotion composition. Khi user chọn template ở form, backend sẽ bundle + render composition tương ứng.
+| File | Template | Visual style |
+|---|---|---|
+| `tech-explainer.jsx` | tech-explainer | Dark editorial, big text, brand-color bar |
+| `promo.jsx` | promo | Fast cuts, alternating brand color, big pop-in |
+| `tutorial.jsx` | tutorial | Step counter, progress bar, UI mock blocks |
 
-| Template | Folder | Status |
-|----------|--------|--------|
-| Tech Explainer | `tech-explainer/` | M3 |
-| Promo / Ad | `promo-ad/` | M3 |
-| Tutorial | `tutorial/` | M3 |
-
-Mỗi folder chứa:
-
-- `Composition.tsx` — Remotion component chính
-- `index.ts` — re-export
-- `assets/` — hình ảnh / icon template-specific
-- `schema.ts` — Zod schema cho input của composition
+All templates are React components that read `script`, `durations`, and `brand` from props (passed at render time). They don't hardcode content — every video is generated dynamically.

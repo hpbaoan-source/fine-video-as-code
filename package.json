@@ -35,18 +35,20 @@
     "url": "https://github.com/hpbaoan-source/fine-video-as-code/issues"
   },
   "dependencies": {
-    "fastify": "^4.28.0",
     "@fastify/cors": "^9.0.1",
     "@fastify/static": "^7.0.4",
-    "zod": "^3.23.8",
-    "edge-tts": "^1.1.1",
     "@remotion/bundler": "^4.0.200",
     "@remotion/renderer": "^4.0.200",
-    "remotion": "^4.0.200",
+    "@resvg/resvg-js": "^2.6.2",
     "execa": "^9.3.1",
-    "nanoid": "^5.0.7"
+    "fastify": "^4.28.0",
+    "nanoid": "^5.0.7",
+    "remotion": "^4.0.200",
+    "satori": "^0.60.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "nodemon": "^3.1.4"
+    "nodemon": "^3.1.4",
+    "pino-pretty": "^13.2.0"
   }
 }

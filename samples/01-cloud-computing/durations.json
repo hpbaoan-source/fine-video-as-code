@@ -1,0 +1,42 @@
+{
+  "fps": 30,
+  "scenes": [
+    {
+      "id": "scene-1",
+      "audio_path": "audio\\scene-1.mp3",
+      "duration_ms": 162,
+      "durationInFrames": 5
+    },
+    {
+      "id": "scene-2",
+      "audio_path": "audio\\scene-2.mp3",
+      "duration_ms": 203,
+      "durationInFrames": 7
+    },
+    {
+      "id": "scene-3",
+      "audio_path": "audio\\scene-3.mp3",
+      "duration_ms": 4964,
+      "durationInFrames": 149
+    },
+    {
+      "id": "scene-4",
+      "audio_path": "audio\\scene-4.mp3",
+      "duration_ms": 223,
+      "durationInFrames": 7
+    },
+    {
+      "id": "scene-5",
+      "audio_path": "audio\\scene-5.mp3",
+      "duration_ms": 223,
+      "durationInFrames": 7
+    },
+    {
+      "id": "scene-6",
+      "audio_path": "audio\\scene-6.mp3",
+      "duration_ms": 7837,
+      "durationInFrames": 236
+    }
+  ],
+  "total_duration_ms": 13612
+}

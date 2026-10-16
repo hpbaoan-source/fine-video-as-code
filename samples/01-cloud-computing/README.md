@@ -1,27 +1,29 @@
 # 01 — Cloud Computing (Tech Explainer)
 
 > **Template:** Tech Explainer
-> **Duration:** ~60s
-> **Render status:** 🚧 M5
+> **Duration:** 60s
+> **Render status:** ✅ done
 
 ## Concept
 
 Video giải thích Cloud Computing cho người mới bắt đầu — phù hợp với audience IT/engineering, dùng làm intro cho học sinh / nhân viên mới onboard.
 
-## Scenes (planned)
+## Render artifacts
 
-1. **Hook** — *"Cloud Computing là gì? Tại sao ai cũng nói về nó?"* (5s)
-2. **Vấn đề** — Server vật lý tốn kém, khó mở rộng (8s)
-3. **Giải pháp** — Cloud = thuê tài nguyên theo nhu cầu (10s)
-4. **3 loại chính** — IaaS / PaaS / SaaS (12s)
-5. **Demo** — Animation kéo thả resource (10s)
-6. **Outro + CTA** — *"Bắt đầu với cloud ngay hôm nay"* (5s)
+| File | Size | Description |
+|---|---|---|
+| `video.mp4`     | ~330 KB | Final rendered video (60s, 1920×1080 @ 30fps) |
+| `script.json`   | ~5 KB   | Generated script (6 scenes, LLM-rewritten Vietnamese) |
+| `durations.json`| ~1 KB   | Per-scene actual TTS duration + frame counts |
+| `audio/`        | ~80 KB  | TTS MP3 files (one per scene, from `tmp/jobs/`) |
 
-## Files (will be added in M5)
+> Note: `audio/` files aren't in the repo (would duplicate video.mp4). They're in `tmp/jobs/<jobId>/audio/` when re-rendered.
 
-- `input.json` — form data mẫu
-- `script.json` — Step 1 output (sinh bằng AI)
-- `durations.json` — Step 2 output (Edge-TTS durations)
-- `audio/scene-1.mp3` ... `audio/scene-6.mp3` — TTS files
-- `video.mp4` — **render sẵn, commit vào repo (~5-15MB)**
-- `thumbnail.png` — frame đầu tiên của video
+## Scenes (final, from script.json)
+
+1. **Hook** — "Cloud Computing là gì? Và tại sao nó lại quan trọng đến vậy?"
+2. **Problem** — "Đúng rồi, khái niệm này nghe phức tạp, nhưng thực ra không khó hiểu đâu."
+3. **Concept** — "Hãy tưởng tượng bạn không cần mua server..."
+4. **Deep dive** — Three core parts: input processing, transformation, output delivery
+5. **Example** — Real-world use case with numbers
+6. **Outro + CTA** — "Hiểu Cloud Computing sẽ giúp bạn làm việc hiệu quả hơn."

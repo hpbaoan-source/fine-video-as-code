@@ -1,8 +1,8 @@
 # 02 — SaaS Productivity Promo (Promo / Ad)
 
 > **Template:** Promo / Ad
-> **Duration:** ~30s
-> **Render status:** 🚧 M5
+> **Duration:** 30s
+> **Render status:** ✅ done
 
 ## Concept
 
@@ -12,19 +12,18 @@ A 30-second promo for a fictional SaaS productivity tool — demonstrates how th
 
 > All branding in this sample is **neutral placeholders**. The product name "FlowDesk" and the visuals are fictional; users can swap them via the form's brand-color, accent-color, and font fields.
 
-## Scenes (planned)
+## Render artifacts
 
-1. **Hook** — *"Tired of context-switching between 10 tools?"* (3s)
-2. **Pain** — 3 chaos visuals: Slack + Email + Docs tabs (6s)
-3. **Solution** — One unified workspace (8s)
-4. **Features** — Real-time collab, integrations, mobile (8s)
-5. **CTA** — *"Try FlowDesk free for 14 days"* (3s)
+| File | Size | Description |
+|---|---|---|
+| `video.mp4`     | ~664 KB | Final rendered video (30s, 1920×1080 @ 30fps) |
+| `script.json`   | ~4 KB   | Generated script (5 scenes) |
+| `durations.json`| ~1 KB   | Per-scene actual TTS duration + frame counts |
 
-## Files (will be added in M5)
+## Scenes (final, from script.json)
 
-- `input.json` — form data mẫu
-- `script.json`
-- `durations.json`
-- `audio/*.mp3`
-- `video.mp4` — render sẵn
-- `thumbnail.png`
+1. **Hook** — Big question about context-switching
+2. **Pain** — Visual chaos of multiple tools
+3. **Solution** — One unified workspace reveal
+4. **Features** — Real-time collab, integrations, mobile
+5. **CTA** — "Try FlowDesk free for 14 days"

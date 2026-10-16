@@ -17,11 +17,12 @@ remotion-cache/
 build/
 
 # ──────────────────────────────────────────────────────────────
-# Generated video files (samples are committed; user output is not)
+# Sample video files ARE committed (~2 MB total).
+# Re-renders drop them in samples/<name>/video.mp4 and they
+# get checked in via the next `git add samples/`.
+# User-generated output (in tmp/jobs/<jobId>/) is NOT committed
+# (covered by the `tmp/` rule below).
 # ──────────────────────────────────────────────────────────────
-samples/*/video.mp4
-samples/*/output/
-samples/*/audio/*.tmp
 
 # ──────────────────────────────────────────────────────────────
 # Environment & secrets — NEVER commit
