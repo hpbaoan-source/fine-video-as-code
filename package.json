@@ -8,10 +8,10 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node backend/server.js",
-    "dev": "node --watch backend/server.js",
+    "start": "node --env-file=.env backend/server.js",
+    "dev": "node --env-file=.env --watch backend/server.js",
     "setup": "node scripts/check-deps.js",
-    "render-sample": "node scripts/render-sample.js",
+    "render-sample": "node --env-file=.env scripts/render-sample.js",
     "test": "node --test backend/tests/*.test.js",
     "postinstall": "npx playwright install chromium"
   },

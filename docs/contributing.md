@@ -132,14 +132,25 @@ Validate with `edge-tts --list-voices` first; the enum must match Microsoft Edge
 
 ## Environment variables
 
+The dev and start scripts auto-load `.env` via `node --env-file=.env`. Copy `.env.example` to `.env` once and fill in your values:
+
+```bash
+cp .env.example .env       # macOS / Linux
+copy .env.example .env     # Windows
+```
+
+`.env` is gitignored. `.env.example` is committed as a template.
+
 | Var | Default | Effect |
 |---|---|---|
 | `PORT` | `3000` | Fastify listen port |
 | `LLM_API_KEY` | — | If set, the LLM rewrites scenes. If unset, only the template fallback runs. |
-| `LLM_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint |
+| `LLM_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible endpoint (OpenAI, DashScope compatible-mode, Ollama, etc.) |
 | `LLM_MODEL` | `gpt-4o-mini` | Model ID passed to the endpoint |
 | `DETERMINISTIC_RENDER` | `1` | `0` to use the realtime `recordVideo` path; default is the deterministic per-frame screenshot path |
 | `PLAYWRIGHT_NO_SANDBOX` | — | Set to `1` to run Chromium without sandbox (e.g. inside containers without `--no-sandbox` allowed) |
+
+The `tests/env.test.js` suite guards the `.env.example` pattern: it fails if `.env.example` is deleted, if `.env` is no longer in `.gitignore`, or if the Node version on the host no longer supports `--env-file`.
 
 ## Tests
 
