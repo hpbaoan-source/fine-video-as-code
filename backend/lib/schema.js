@@ -32,7 +32,12 @@ export const GenerateInputSchema = z.object({
   backgroundMusic: z.boolean().default(false),
   maxScenes: z.number().int().min(2).max(20).default(6),
   aiModel: z.string().default("default"),
-  outputFilename: z.string().max(100).optional(),
+  outputFilename: z
+    .string()
+    .min(1)
+    .max(80)
+    .regex(/^[\w\- ]{1,80}$/, "outputFilename may only contain letters, digits, underscore, hyphen, and spaces")
+    .optional(),
 });
 
 // ─── Scene schema (Step 1 output) ──────────────────────────

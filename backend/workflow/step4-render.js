@@ -26,12 +26,6 @@ import ffmpegStatic from "ffmpeg-static";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Playwright was installed to D:\Projects\video_as_code\0 (with trailing space)
-// instead of %LOCALAPPDATA%\ms-playwright. Make sure runtime finds it.
-if (!process.env.PLAYWRIGHT_BROWSERS_PATH) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(__dirname, "..", "..");
-}
-
 const execFileP = promisify(execFile);
 const FFMPEG_BIN = ffmpegStatic;
 

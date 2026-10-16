@@ -1,7 +1,7 @@
 {
   "name": "fine-video-as-code",
   "version": "0.1.0",
-  "description": "Open-source Video-as-Code pipeline. Turn a short topic into a polished explainer video: web form → JSON input → 4-step backend workflow (Remotion + Edge-TTS) → MP4 file. Three built-in templates (Tech Explainer, Promo, Tutorial).",
+  "description": "Open-source Video-as-Code pipeline. Turn a short topic into a polished explainer video: web form + JSON input + 4-step backend workflow (Playwright + Edge-TTS + ffmpeg-static) + MP4 file. Three built-in templates (Tech Explainer, Promo, Tutorial).",
   "main": "backend/server.js",
   "type": "module",
   "engines": {
@@ -10,19 +10,20 @@
   "scripts": {
     "start": "node backend/server.js",
     "dev": "node --watch backend/server.js",
-    "build": "echo \"[TODO] Phase 1: Remotion build pipeline\" && exit 0",
-    "render-sample": "node scripts/render-sample.js",
     "setup": "node scripts/check-deps.js",
-    "test": "echo \"[TODO] Tests will be added in Phase 7\" && exit 0"
+    "render-sample": "node scripts/render-sample.js",
+    "test": "node --test backend/tests/*.test.js",
+    "postinstall": "npx playwright install chromium"
   },
   "keywords": [
     "video",
-    "remotion",
-    "tts",
+    "video-as-code",
+    "playwright",
+    "ffmpeg",
     "edge-tts",
+    "tts",
     "automation",
     "ai",
-    "video-as-code",
     "explainer"
   ],
   "author": "Huỳnh Phương Bảo An <hpbaoan@gmail.com>",

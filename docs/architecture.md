@@ -13,8 +13,7 @@
             │
             ├─► (3a) Step 1: Scripting
             │      form data + LLM rewrite → script.json
-            │      (LLM key auto-read from ~/.nanobot/config.json;
-            │       if no key, template-only is used;
+            │      (LLM_API_KEY env var; if missing, template-only is used;
             │       if `presetScript` field, loaded directly from file)
             │
             ├─► (3b) Step 2: TTS

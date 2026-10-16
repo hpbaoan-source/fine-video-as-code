@@ -14,7 +14,7 @@
 // ──────────────────────────────────────────────────────────────
 
 import { ScriptSchema } from "../lib/schema.js";
-import { getLLMClient } from "../lib/llm-client.js";
+import { complete } from "../lib/llm-client.js";
 
 // Estimate Vietnamese TTS speed: ~3.5 chars/sec natural pace.
 // EN pace is slightly faster.
@@ -174,8 +174,12 @@ function deriveOnScreenText(voiceover, language) {
 
 // ─── Optional LLM rewrite (Step 1 enhancement) ────────────
 async function maybeRewriteWithLLM(script, input) {
-  const llm = getLLMClient();
-  if (!llm) return script;
+  // If no LLM is configured (LLM_API_KEY missing), skip silently.
+  // Otherwise we use the configured OpenAI-compatible provider.
+  if (!process.env.LLM_API_KEY) {
+    script.meta.llm_skipped = "LLM_API_KEY not set";
+    return script;
+  }
 
   const systemPrompt = `You are a concise video script writer for short explainer videos.
 Given a script structure, rewrite each scene's voiceover to be punchy and natural in ${input.language === "vi" ? "Vietnamese" : "English"}.
@@ -191,14 +195,15 @@ ${JSON.stringify(script.scenes.map((s) => ({ id: s.id, role_hint: s.visual_cues[
 Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
 
   try {
-    const result = await llm.complete({
+    const result = await complete({
       system: systemPrompt,
       user: userPrompt,
       json: true,
       maxTokens: 2000,
     });
-    if (result?.scenes && Array.isArray(result.scenes)) {
-      for (const rewritten of result.scenes) {
+    const parsed = result.parsed;
+    if (parsed?.scenes && Array.isArray(parsed.scenes)) {
+      for (const rewritten of parsed.scenes) {
         const target = script.scenes.find((s) => s.id === rewritten.id);
         if (target && typeof rewritten.voiceover === "string") {
           target.voiceover = rewritten.voiceover;
@@ -207,6 +212,7 @@ Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
         }
       }
       script.meta.generated_by = "template+llm";
+      script.meta.llm_model = result.model;
     }
   } catch (err) {
     // LLM failure is non-fatal — keep template output
