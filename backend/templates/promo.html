@@ -14,86 +14,80 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
   body { position: relative; }
-  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .stage { position: absolute; inset: 0; }
   .topic { position: absolute; top: 60px; left: 50%; transform: translateX(-50%); font-size: 26px; letter-spacing: 8px; color: var(--accent); text-transform: uppercase; font-weight: 600; opacity: 0; transition: opacity 0.5s; z-index: 10; }
   .topic.show { opacity: 1; }
-  /* Background pulse dot */
   .pulse { position: absolute; top: 50%; left: 50%; width: 1000px; height: 1000px; margin: -500px 0 0 -500px; background: radial-gradient(circle, var(--brand) 0%, transparent 70%); opacity: 0.18; transition: transform 0.6s ease-in-out, opacity 0.4s; }
   .scene { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; opacity: 0; pointer-events: none; }
   .scene .heading { font-size: 140px; font-weight: 800; line-height: 1.0; text-align: center; max-width: 1700px; opacity: 0; transform: scale(0.7); transition: opacity 0.5s ease-out, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .scene .voiceover { font-size: 44px; color: var(--dim); margin-top: 60px; text-align: center; max-width: 1500px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.2s; }
+  .on-screen { font-size: 64px; color: var(--brand); margin-top: 30px; font-weight: 700; text-align: center; opacity: 0; transition: opacity 0.5s ease-out 0.3s; }
   .cta { position: absolute; bottom: 200px; left: 50%; transform: translateX(-50%) scale(0.9); background: var(--accent); color: var(--bg); font-size: 28px; font-weight: 800; padding: 22px 60px; border-radius: 50px; letter-spacing: 3px; opacity: 0; transition: opacity 0.4s, transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); }
   .scene.active { opacity: 1; }
   .scene.active .heading { opacity: 1; transform: scale(1); }
   .scene.active .voiceover { opacity: 1; }
+  .scene.active .on-screen { opacity: 1; }
   .scene.active .cta { opacity: 1; transform: translateX(-50%) scale(1); }
   .scene.exiting { opacity: 0; }
   .scene.exiting .heading { transform: scale(1.15); transition: opacity 0.4s ease-in, transform 0.4s ease-in; }
+  .cue { position: absolute; top: 200px; right: 200px; opacity: 0; transition: opacity 0.4s ease-out 0.3s; }
+  .scene.active .cue { opacity: 1; }
+  .cue-icon { width: 200px; height: 200px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 100px; color: #fff; font-weight: 800; }
 </style>
 </head>
 <body>
   <div class="pulse" id="pulse"></div>
   <div class="topic" id="topic"></div>
   <div class="stage" id="stage"></div>
-
+  <script src="_engine.js"></script>
   <script>
   async function main() {
+    const E = window.fineVideoEngine;
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
-    const dataUrl = params.get('data') || 'data.json';
-    const res = await fetch(dataUrl);
-    const data = await res.json();
-    const totalMs = data.scenes.reduce((a, s) => a + s.duration_ms, 0);
-
+    const data = await (await fetch(params.get('data') || 'data.json')).json();
+    E.applyBrand(data.brand || {});
     document.getElementById('topic').textContent = data.topic;
     const stage = document.getElementById('stage');
-    const pulse = document.getElementById('pulse');
-    const sizes = [1200, 800, 1000, 600, 1100];
-
-    const sceneEls = data.scenes.map((s, i) => {
-      const el = document.createElement('div');
-      el.className = 'scene';
-      el.innerHTML = `
-        <div class="heading">${escapeHtml(s.heading)}</div>
-        <div class="voiceover">${escapeHtml(s.voiceover)}</div>
-        ${i === data.scenes.length - 1 ? '<div class="cta">GET STARTED →</div>' : ''}
+    const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
+      const cue = (s.visual_cues || []).find((c) => c.type === 'icon') || (s.visual_cues || [])[0];
+      const cueHtml = cue ? `<div class="cue"><div class="cue-icon">${E.escapeHtml((cue.content||'').slice(0,2).toUpperCase())}</div></div>` : '';
+      const isLast = i === data.scenes.length - 1;
+      return `
+        <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+        <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
+        <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
+        ${cueHtml}
+        ${isLast ? '<div class="cta">GET STARTED →</div>' : ''}
       `;
-      stage.appendChild(el);
-      return el;
     });
-
-    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-    let cumulative = 0;
-    const transitions = [];
-    for (let i = 0; i < sceneEls.length; i++) {
-      const s = data.scenes[i];
-      const intro = 0.4;
-      const outro = 0.4;
-      const at = cumulative / 1000;
-      transitions.push({ at, do: () => {
-        sceneEls.forEach((e, j) => e.classList.toggle('active', j === i));
-        if (i === 0) document.getElementById('topic').classList.add('show');
-        pulse.style.width = pulse.style.height = sizes[i % sizes.length] + 'px';
-        pulse.style.margin = (-sizes[i % sizes.length] / 2) + 'px 0 0 ' + (-sizes[i % sizes.length] / 2) + 'px';
-      }});
-      cumulative += (s.duration_ms - outro * 1000);
-      transitions.push({ at: cumulative / 1000, do: () => sceneEls[i].classList.add('exiting') });
-      cumulative += outro * 1000;
+    const timeline = E.buildTimeline(data.scenes);
+    const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
+    window.__seek = seek;
+    window.__duration = () => timeline.totalMs;
+    if (isRender) {
+      const t0Start = performance.now();
+      // Promo also has a pulse ring size per scene.
+      const sizes = [1200, 800, 1000, 600, 1100];
+      const pulse = document.getElementById('pulse');
+      const origSeek = seek;
+      const seekWithPulse = (tMs) => {
+        const r = origSeek(tMs);
+        if (r.activeIdx !== undefined) {
+          const sz = sizes[r.activeIdx % sizes.length];
+          pulse.style.width = pulse.style.height = sz + 'px';
+          pulse.style.margin = (-sz/2) + 'px 0 0 ' + (-sz/2) + 'px';
+          if (r.activeIdx === 0) document.getElementById('topic').classList.add('show');
+          if (tMs >= r.totalMs - 600) document.getElementById('topic').classList.remove('show');
+        }
+        return r;
+      };
+      window.__seek = seekWithPulse;
+      E.runRealtime(seekWithPulse, timeline.totalMs, () => {
+        window.__t0_offset_ms = performance.now() - t0Start;
+        window.__renderDone = true;
+      });
     }
-    transitions.push({ at: totalMs / 1000 - 0.6, do: () => {
-      document.getElementById('topic').classList.remove('show');
-    }});
-
-    const t0 = performance.now();
-    const timer = setInterval(() => {
-      const elapsed = (performance.now() - t0) / 1000;
-      while (transitions.length && transitions[0].at <= elapsed) transitions.shift().do();
-      if (elapsed >= totalMs / 1000) {
-        clearInterval(timer);
-        if (isRender) window.__renderDone = true;
-      }
-    }, 30);
   }
   main();
   </script>

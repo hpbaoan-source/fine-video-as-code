@@ -1,21 +1,28 @@
 // ──────────────────────────────────────────────────────────────
-// Step 4 — Render: Playwright → webm → mp4, then TTS mux
+// Step 4 — Render: Playwright → webm/png → mp4, then TTS mux
 // ──────────────────────────────────────────────────────────────
 // Pipeline:
 //   1. Write data.json (scene list + brand) into workDir.
 //   2. Spin up a per-job local HTTP server on 127.0.0.1 (port
 //      chosen by the OS via listen(0) to avoid collisions).
-//   3. Launch Playwright (Chromium), load the template HTML,
-//      record the page navigation and the JS-driven animation.
-//   4. The page reports window.__t0_offset_ms = how many ms
-//      elapsed between recordVideo start and the first animation
-//      frame. We use that to align audio with video.
-//   5. Convert the webm to mp4 (h264, faststart).
+//   3. Launch Playwright (Chromium), load the template HTML.
+//   4. Either:
+//        a) DETERMINISTIC: drive the animation via
+//           window.__seek(t_ms) and take a screenshot for every
+//           frame. Output is identical for identical input — same
+//           ffmpeg PNG stream, same hashes. (default)
+//        b) REALTIME:      let the page's setInterval animate
+//           and record the navigation as webm via Playwright's
+//           recordVideo. Slightly faster on slow machines but
+//           the output varies between runs.
+//   5. Convert PNG stream (or webm) to mp4 (h264, faststart).
 //   6. Concat the per-scene MP3s (each is pre-padded to its
 //      duration_ms in step 2, so -c copy is safe).
-//   7. Mux the audio into the mp4 with -itsoffset <t0_offset_ms>
-//      so the audio starts when the animation does, not when
-//      recordVideo started.
+//   7. Mux the audio into the mp4. In deterministic mode, audio
+//      starts at 0 (frames are perfectly aligned). In realtime
+//      mode, audio is delayed by -itsoffset <t0_offset_ms> so
+//      the first syllable lines up with the first animation
+//      frame.
 // ──────────────────────────────────────────────────────────────
 
 import path from "node:path";
@@ -45,12 +52,23 @@ const TEMPLATE_FILES = {
 };
 
 const PLAYWRIGHT_ARGS = process.env.PLAYWRIGHT_NO_SANDBOX === "1" ? ["--no-sandbox"] : [];
+// Default to deterministic rendering. The realtime fallback is
+// available via `input.deterministic: false` or DETERMINISTIC_RENDER=0.
+const DEFAULT_DETERMINISTIC = process.env.DETERMINISTIC_RENDER !== "0";
+// Frame rate for the deterministic path. 30 fps matches the CSS
+// transition timings in the templates; 60 fps gives smoother
+// motion at higher cost.
+const DEFAULT_FPS = Number.parseInt(process.env.RENDER_FPS || "30", 10);
 
 export async function step4Render({ script, input, workDir, onLog, onProgress }) {
   const templateFile = TEMPLATE_FILES[input.template];
   if (!templateFile) throw new Error(`Unknown template: ${input.template}`);
 
-  onLog?.(`Loading HTML template: ${templateFile}`);
+  const deterministic =
+    input.deterministic !== undefined ? input.deterministic : DEFAULT_DETERMINISTIC;
+  const fps = Number.isInteger(input.fps) ? input.fps : DEFAULT_FPS;
+
+  onLog?.(`Loading HTML template: ${templateFile} (${deterministic ? "deterministic" : "realtime"})`);
   onProgress?.(5);
 
   // 1. Write data.json. Source of truth for per-scene timing is
@@ -89,31 +107,44 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
   onLog?.(`Local server on 127.0.0.1:${port}`);
   onProgress?.(20);
 
-  // 3-5. Playwright render.
-  const webmPath = path.join(workDir, "video.webm");
+  // 3-5. Playwright render. In deterministic mode, we save a
+  // sequence of PNGs and ffmpeg-encodes them straight to mp4.
+  // In realtime mode, recordVideo produces a webm which we then
+  // transcode to mp4.
+  const videoRawPath = path.join(workDir, "video-no-audio.mp4");
   let t0OffsetMs = 0;
   try {
-    t0OffsetMs = await renderInPlaywright(templateFile, sceneData, port, webmPath, onLog);
+    if (deterministic) {
+      const totalMs = sceneData.scenes.reduce((a, s) => a + s.duration_ms, 0);
+      const framesDir = path.join(workDir, "frames");
+      await fs.mkdir(framesDir, { recursive: true });
+      const frameCount = Math.ceil((totalMs / 1000) * fps);
+      onLog?.(`Deterministic: ${frameCount} frames @ ${fps}fps (${(totalMs / 1000).toFixed(1)}s)`);
+      const result = await renderDeterministic(templateFile, sceneData, port, framesDir, frameCount, onLog);
+      t0OffsetMs = 0; // frames are already aligned to t=0
+      onProgress?.(40);
+      await encodePngsToMp4(framesDir, videoRawPath, fps, onLog);
+    } else {
+      const webmPath = path.join(workDir, "video.webm");
+      t0OffsetMs = await renderInPlaywrightRealtime(templateFile, sceneData, port, webmPath, onLog);
+      onProgress?.(40);
+      onLog?.(`Realtime render complete (t0_offset=${t0OffsetMs}ms), converting to MP4...`);
+      await execFileP(
+        FFMPEG_BIN,
+        [
+          "-y", "-hide_banner", "-loglevel", "error", "-nostats",
+          "-i", webmPath,
+          "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+          "-pix_fmt", "yuv420p",
+          "-movflags", "+faststart",
+          videoRawPath,
+        ],
+        FFMPEG_OPTS
+      );
+    }
   } finally {
     server.close();
   }
-  onProgress?.(50);
-  onLog?.(`Playwright render complete (t0_offset=${t0OffsetMs}ms), converting to MP4...`);
-
-  // 5. Convert webm → mp4 (no audio).
-  const videoRawPath = path.join(workDir, "video-no-audio.mp4");
-  await execFileP(
-    FFMPEG_BIN,
-    [
-      "-y", "-hide_banner", "-loglevel", "error", "-nostats",
-      "-i", webmPath,
-      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
-      "-pix_fmt", "yuv420p",
-      "-movflags", "+faststart",
-      videoRawPath,
-    ],
-    FFMPEG_OPTS
-  );
   onProgress?.(70);
   onLog?.("MP4 (no audio) ready");
 
@@ -126,13 +157,15 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
   await concatAudio(audioList, audioConcatPath);
   onProgress?.(80);
 
-  // 7. Mux. -itsoffset on the audio input delays audio start by
-  //    t0OffsetMs so the first syllable lines up with the first
-  //    animation frame, not with the empty page that was on
-  //    screen while recordVideo was already rolling.
+  // 7. Mux. In deterministic mode, the audio starts at 0 (frames
+  //    are taken at exact t_ms, so the first frame at t=0
+  //    corresponds to the empty intro state — we accept that
+  //    ~50ms of empty start). In realtime mode, audio is
+  //    delayed by t0OffsetMs so the first syllable lines up.
   const filename = (input.outputFilename || input.template) + ".mp4";
   const finalPath = path.join(workDir, filename);
-  const itsoffsetArgs = t0OffsetMs > 50 ? ["-itsoffset", (t0OffsetMs / 1000).toFixed(3)] : [];
+  const itsoffsetArgs =
+    !deterministic && t0OffsetMs > 50 ? ["-itsoffset", (t0OffsetMs / 1000).toFixed(3)] : [];
   await execFileP(
     FFMPEG_BIN,
     [
@@ -155,7 +188,7 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
   onProgress?.(100);
   onLog?.(`✓ Final MP4: ${filename} (${(stat.size / 1024).toFixed(1)} KB)`);
 
-  return { path: finalPath, filename, size: stat.size, t0OffsetMs };
+  return { path: finalPath, filename, size: stat.size, t0OffsetMs, deterministic };
 }
 
 function deriveHeading(voiceover, language) {
@@ -183,10 +216,6 @@ function startServer(mounts) {
         const urlPath =
           prefix === "/" ? url : url.startsWith(prefix) ? url.slice(prefix.length) : null;
         if (urlPath === null) return tryServe(i + 1);
-        // Resolve and guard against path traversal. We use
-        // path.relative + reject anything that escapes the root;
-        // startsWith on the raw path is too permissive
-        // ("/templates-evil" passed "D:\root\templates" check).
         const candidate = path.join(m.root, urlPath === "/" ? "/index.html" : urlPath);
         if (!isPathInside(m.root, candidate)) return tryServe(i + 1);
         try {
@@ -208,7 +237,82 @@ function startServer(mounts) {
   });
 }
 
-async function renderInPlaywright(templateFile, sceneData, port, outWebm, onLog) {
+// Deterministic render: for each frame, advance the page's
+// internal clock via window.__seek and screenshot. The page is
+// already populated with scene DOM by the time __seek is called.
+// Output: a sequence of PNGs in `framesDir`, one per frame.
+async function renderDeterministic(templateFile, sceneData, port, framesDir, frameCount, onLog) {
+  let browser = null;
+  let context = null;
+  let page = null;
+  try {
+    browser = await chromium.launch({ headless: true, args: PLAYWRIGHT_ARGS });
+    context = await browser.newContext({
+      viewport: { width: 1920, height: 1080 },
+      // No recordVideo — we screenshot per frame.
+    });
+    page = await context.newPage();
+    page.on("pageerror", (err) => onLog?.(`[page error] ${err.message}`));
+    page.on("console", (msg) => {
+      if (msg.type() === "error") onLog?.(`[console] ${msg.text()}`);
+    });
+
+    const url = `http://127.0.0.1:${port}/${templateFile}?render=1&data=_data/data.json`;
+    onLog?.(`Loading ${templateFile}...`);
+    await page.goto(url, { waitUntil: "domcontentloaded" });
+    // Wait for the engine to be ready and DOM to be built.
+    await page.waitForFunction(() => typeof window.__seek === "function", null, { timeout: 10000 });
+    const totalMs = await page.evaluate(() => window.__duration());
+    onLog?.(`Engine ready, totalMs=${totalMs}, ${frameCount} frames`);
+
+    const msPerFrame = totalMs / frameCount;
+    for (let i = 0; i < frameCount; i++) {
+      const tMs = Math.round(i * msPerFrame);
+      await page.evaluate((t) => window.__seek(t), tMs);
+      // No animation waits needed: __seek sets state directly.
+      const framePath = path.join(framesDir, `frame-${String(i).padStart(5, "0")}.png`);
+      await page.screenshot({ path: framePath, type: "png" });
+    }
+    return { totalMs, frameCount };
+  } finally {
+    if (page) {
+      try { await page.close(); } catch {}
+    }
+    if (context) {
+      try { await context.close(); } catch {}
+    }
+    if (browser) {
+      try { await browser.close(); } catch {}
+    }
+  }
+}
+
+async function encodePngsToMp4(framesDir, outPath, fps, onLog) {
+  // ffmpeg -framerate FPS -i frame-%05d.png -c:v libx264 ...
+  // -framerate on the input side tells ffmpeg to interpret the
+  // PNG sequence as fps frames per second. The output is
+  // implicitly the same rate, but we set -r to be explicit.
+  onLog?.(`Encoding ${(await fs.readdir(framesDir)).length} PNGs to MP4 @ ${fps}fps...`);
+  await execFileP(
+    FFMPEG_BIN,
+    [
+      "-y", "-hide_banner", "-loglevel", "error", "-nostats",
+      "-framerate", String(fps),
+      "-i", path.join(framesDir, "frame-%05d.png"),
+      "-c:v", "libx264", "-preset", "fast", "-crf", "23",
+      "-pix_fmt", "yuv420p",
+      "-r", String(fps),
+      "-movflags", "+faststart",
+      outPath,
+    ],
+    FFMPEG_OPTS
+  );
+}
+
+// Realtime fallback: record the page navigation as webm and let
+// the page's setInterval animate. Faster on slow machines but
+// not bit-for-bit reproducible.
+async function renderInPlaywrightRealtime(templateFile, sceneData, port, outWebm, onLog) {
   let browser = null;
   let context = null;
   try {
@@ -233,16 +337,12 @@ async function renderInPlaywright(templateFile, sceneData, port, outWebm, onLog)
     onLog?.(`All ${sceneData.scenes.length} scenes rendered (~${totalSec.toFixed(1)}s)`);
     await page.waitForTimeout(300);
 
-    // Read the animation-start offset the page reported, then
-    // close. Order matters: close context first so the webm is
-    // finalized, then read the value, then close the browser.
     const t0OffsetMs = await page.evaluate(() => window.__t0_offset_ms || 0);
     await context.close();
     context = null;
     await browser.close();
     browser = null;
 
-    // Find and rename the recorded webm.
     const dir = path.dirname(outWebm);
     const webms = (await fs.readdir(dir)).filter((f) => f.endsWith(".webm"));
     if (webms.length === 0) throw new Error("Playwright did not produce a webm video");
@@ -250,19 +350,11 @@ async function renderInPlaywright(templateFile, sceneData, port, outWebm, onLog)
     await fs.rename(src, outWebm);
     return t0OffsetMs;
   } finally {
-    // Defensive: if anything above threw, close whatever is still
-    // open so we never leak a Chromium process. Each close() is
-    // wrapped in try/catch because a context that already errored
-    // is in an undefined state and close() can itself throw.
     if (context) {
-      try {
-        await context.close();
-      } catch {}
+      try { await context.close(); } catch {}
     }
     if (browser) {
-      try {
-        await browser.close();
-      } catch {}
+      try { await browser.close(); } catch {}
     }
   }
 }

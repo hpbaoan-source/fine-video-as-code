@@ -15,7 +15,7 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
   body { position: relative; }
-  .stage { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60px; }
+  .stage { position: absolute; inset: 0; }
   .topic { position: absolute; top: 40px; left: 60px; font-size: 24px; color: var(--dim); letter-spacing: 2px; font-weight: 500; opacity: 0; transition: opacity 0.5s; z-index: 10; }
   .topic.show { opacity: 1; }
   .topic .badge { color: var(--accent); font-weight: 700; margin-right: 12px; }
@@ -27,81 +27,71 @@
   .chip { position: absolute; top: -50px; left: 60px; width: 100px; height: 100px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 800; color: #fff; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s; }
   .heading { font-size: 72px; font-weight: 700; line-height: 1.1; max-width: 1300px; margin-bottom: 40px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
   .voiceover { font-size: 36px; color: var(--dim); max-width: 1300px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.7s; }
+  .on-screen { font-size: 48px; color: var(--brand); font-weight: 600; margin-bottom: 24px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; }
   .scene.active .card { transform: translateX(0); opacity: 1; }
   .scene.active .chip { transform: scale(1); }
-  .scene.active .heading, .scene.active .voiceover { opacity: 1; }
+  .scene.active .heading, .scene.active .voiceover, .scene.active .on-screen { opacity: 1; }
   .scene.exiting .card { transform: translateX(-1700px); opacity: 0; }
-  .scene.exiting .heading, .scene.exiting .voiceover { opacity: 0; }
+  .scene.exiting .heading, .scene.exiting .voiceover, .scene.exiting .on-screen { opacity: 0; }
+  .cue { position: absolute; bottom: 120px; left: 80px; opacity: 0; transition: opacity 0.4s ease-out 0.3s; }
+  .scene.active .cue { opacity: 1; }
+  .cue-code { background: #0a0c10; border: 2px solid var(--brand); border-radius: 12px; padding: 24px 36px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 28px; color: var(--text); white-space: pre; max-width: 1300px; }
 </style>
 </head>
 <body>
   <div class="topic" id="topic"><span class="badge">TUTORIAL</span><span id="topicText"></span></div>
   <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
   <div class="stage" id="stage"></div>
-
+  <script src="_engine.js"></script>
   <script>
   async function main() {
+    const E = window.fineVideoEngine;
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
-    const dataUrl = params.get('data') || 'data.json';
-    const res = await fetch(dataUrl);
-    const data = await res.json();
-    const totalMs = data.scenes.reduce((a, s) => a + s.duration_ms, 0);
-
+    const data = await (await fetch(params.get('data') || 'data.json')).json();
+    E.applyBrand(data.brand || {});
     document.getElementById('topicText').textContent = data.topic;
     const stage = document.getElementById('stage');
-    const progressTrack = document.getElementById('progressTrack');
     const progressFill = document.getElementById('progressFill');
-
-    const sceneEls = data.scenes.map((s, i) => {
-      const el = document.createElement('div');
-      el.className = 'scene';
-      el.innerHTML = `
+    const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
+      const codeCue = (s.visual_cues || []).find((c) => c.type === 'code');
+      const cueHtml = codeCue ? `<div class="cue"><pre class="cue-code">${E.escapeHtml(codeCue.content || '')}</pre></div>` : '';
+      return `
         <div class="card">
           <div class="chip">${i + 1}</div>
-          <div class="heading">${escapeHtml(s.heading)}</div>
-          <div class="voiceover">${escapeHtml(s.voiceover)}</div>
+          <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
+          <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+          <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
         </div>
+        ${cueHtml}
       `;
-      stage.appendChild(el);
-      return el;
     });
-
-    function escapeHtml(s) { return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-
-    let cumulative = 0;
-    const transitions = [];
-    for (let i = 0; i < sceneEls.length; i++) {
-      const s = data.scenes[i];
-      const intro = 0.5;
-      const outro = 0.5;
-      const at = cumulative / 1000;
-      transitions.push({ at, do: () => {
-        sceneEls.forEach((e, j) => e.classList.toggle('active', j === i));
-        if (i === 0) {
+    const timeline = E.buildTimeline(data.scenes);
+    const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
+    window.__seek = seek;
+    window.__duration = () => timeline.totalMs;
+    if (isRender) {
+      const t0Start = performance.now();
+      const origSeek = seek;
+      const seekWithProgress = (tMs) => {
+        const r = origSeek(tMs);
+        if (r.activeIdx === 0) {
           document.getElementById('topic').classList.add('show');
-          progressTrack.classList.add('show');
+          document.getElementById('progressTrack').classList.add('show');
         }
-        progressFill.style.width = ((i + 1) / data.scenes.length * 100) + '%';
-      }});
-      cumulative += (s.duration_ms - outro * 1000);
-      transitions.push({ at: cumulative / 1000, do: () => sceneEls[i].classList.add('exiting') });
-      cumulative += outro * 1000;
+        progressFill.style.width = ((r.activeIdx + 1) / data.scenes.length * 100) + '%';
+        if (tMs >= r.totalMs - 600) {
+          document.getElementById('topic').classList.remove('show');
+          document.getElementById('progressTrack').classList.remove('show');
+        }
+        return r;
+      };
+      window.__seek = seekWithProgress;
+      E.runRealtime(seekWithProgress, timeline.totalMs, () => {
+        window.__t0_offset_ms = performance.now() - t0Start;
+        window.__renderDone = true;
+      });
     }
-    transitions.push({ at: totalMs / 1000 - 0.6, do: () => {
-      document.getElementById('topic').classList.remove('show');
-      progressTrack.classList.remove('show');
-    }});
-
-    const t0 = performance.now();
-    const timer = setInterval(() => {
-      const elapsed = (performance.now() - t0) / 1000;
-      while (transitions.length && transitions[0].at <= elapsed) transitions.shift().do();
-      if (elapsed >= totalMs / 1000) {
-        clearInterval(timer);
-        if (isRender) window.__renderDone = true;
-      }
-    }, 30);
   }
   main();
   </script>
