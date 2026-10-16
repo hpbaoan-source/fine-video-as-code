@@ -1,73 +1,109 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>Tutorial — fine-video-as-code</title>
-<style>
-  :root {
-    --brand: #3B82F6;
-    --accent: #F59E0B;
-    --text: #F3F4F6;
-    --dim: #9CA3AF;
-    --bg: #0f1115;
-    --card: #1a1d23;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
-  body { position: relative; }
-  .stage { position: absolute; inset: 0; }
-  .topic { position: absolute; top: 40px; left: 60px; font-size: 24px; color: var(--dim); letter-spacing: 2px; font-weight: 500; opacity: 0; transition: opacity 0.5s; z-index: 10; }
-  .topic.show { opacity: 1; }
-  .topic .badge { color: var(--accent); font-weight: 700; margin-right: 12px; }
-  .progress-track { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 1600px; height: 6px; background: #374151; border-radius: 3px; opacity: 0; transition: opacity 0.5s; }
-  .progress-track.show { opacity: 1; }
-  .progress-fill { height: 100%; background: var(--brand); width: 0; border-radius: 3px; transition: width 0.6s ease-out; }
-  .scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
-  .card { width: 1500px; height: 700px; background: var(--card); border: 2px solid var(--brand); border-radius: 20px; padding: 60px 80px; display: flex; flex-direction: column; justify-content: center; transform: translateX(1700px); transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s; opacity: 0; position: relative; }
-  .chip { position: absolute; top: -50px; left: 60px; width: 100px; height: 100px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 800; color: #fff; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s; }
-  .heading { font-size: 72px; font-weight: 700; line-height: 1.1; max-width: 1300px; margin-bottom: 40px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
-  .voiceover { font-size: 36px; color: var(--dim); max-width: 1300px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.7s; }
-  .on-screen { font-size: 48px; color: var(--brand); font-weight: 600; margin-bottom: 24px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; }
-  .scene.active .card { transform: translateX(0); opacity: 1; }
-  .scene.active .chip { transform: scale(1); }
-  .scene.active .heading, .scene.active .voiceover, .scene.active .on-screen { opacity: 1; }
-  .scene.exiting .card { transform: translateX(-1700px); opacity: 0; }
-  .scene.exiting .heading, .scene.exiting .voiceover, .scene.exiting .on-screen { opacity: 0; }
-  .cue { position: absolute; bottom: 120px; left: 80px; opacity: 0; transition: opacity 0.4s ease-out 0.3s; }
-  .scene.active .cue { opacity: 1; }
-  .cue-code { background: #0a0c10; border: 2px solid var(--brand); border-radius: 12px; padding: 24px 36px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 28px; color: var(--text); white-space: pre; max-width: 1300px; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Tutorial — fine-video-as-code</title>
+  <style>
+    :root {
+      --brand: #3B82F6;
+      --accent: #F59E0B;
+      --text: #F3F4F6;
+      --dim: #9CA3AF;
+      --bg: #0f1115;
+      --card: #1a1d23;
+      --term-bg: #08090b;
+      --term-prompt: #6ee7b7;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+    body { position: relative; }
+    .stage { position: absolute; inset: 0; }
+    .topic { position: absolute; top: 40px; left: 60px; font-size: 24px; color: var(--dim); letter-spacing: 2px; font-weight: 500; opacity: 0; transition: opacity 0.5s; z-index: 10; }
+    .topic.show { opacity: 1; }
+    .topic .badge { color: var(--accent); font-weight: 700; margin-right: 12px; }
+    .progress-track { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 1600px; height: 6px; background: #374151; border-radius: 3px; opacity: 0; transition: opacity 0.5s; }
+    .progress-track.show { opacity: 1; }
+    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--accent)); width: 0; border-radius: 3px; transition: width 0.6s ease-out; }
+    .scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
+    .card { width: 1500px; height: 760px; background: var(--card); border: 2px solid var(--brand); border-radius: 20px; padding: 60px 80px; display: flex; flex-direction: column; justify-content: center; transform: translateX(1700px); transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s; opacity: 0; position: relative; }
+    .step-row { display: flex; align-items: center; gap: 32px; margin-bottom: 32px; }
+    .chip { width: 96px; height: 96px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 800; color: #fff; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s; flex-shrink: 0; }
+    .step-icon { color: var(--brand); opacity: 0.85; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s; }
+    .step-divider { flex: 1; height: 2px; background: linear-gradient(90deg, var(--brand), transparent); opacity: 0.4; }
+    .heading { font-size: 60px; font-weight: 700; line-height: 1.1; max-width: 1300px; margin-bottom: 28px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
+    .voiceover { font-size: 32px; color: var(--dim); max-width: 1300px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.7s; }
+    .on-screen { font-size: 44px; color: var(--brand); font-weight: 600; margin-bottom: 18px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; }
+    .terminal { background: var(--term-bg); border: 1px solid #1f2937; border-radius: 12px; padding: 20px 28px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 26px; color: var(--text); white-space: pre; max-width: 1300px; line-height: 1.5; margin-top: 20px; opacity: 0; transition: opacity 0.5s ease-out 0.8s; }
+    .terminal .prompt { color: var(--term-prompt); }
+    .terminal .output { color: var(--dim); }
+    .terminal .hl { color: var(--accent); }
+    .scene.active .card { transform: translateX(0); opacity: 1; }
+    .scene.active .chip { transform: scale(1); }
+    .scene.active .step-icon { transform: scale(1); }
+    .scene.active .heading, .scene.active .voiceover, .scene.active .on-screen, .scene.active .terminal { opacity: 1; }
+    .scene.exiting .card { transform: translateX(-1700px); opacity: 0; }
+    .scene.exiting .heading, .scene.exiting .voiceover, .scene.exiting .on-screen, .scene.exiting .terminal { opacity: 0; }
+    .scene-num-row { position: absolute; top: 36px; right: 60px; display: flex; align-items: baseline; gap: 6px; z-index: 5; opacity: 0; transition: opacity 0.5s; }
+    .scene-num-row.show { opacity: 1; }
+    .scene-num-row .cur { color: var(--brand); font-size: 64px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+    .scene-num-row .total { color: var(--dim); font-size: 28px; font-family: 'JetBrains Mono', monospace; }
+  </style>
 </head>
 <body>
   <div class="topic" id="topic"><span class="badge">TUTORIAL</span><span id="topicText"></span></div>
+  <div class="scene-num-row" id="sceneNumRow"><span class="cur" id="curStep">01</span><span class="total">/ <span id="totalSteps">07</span></span></div>
   <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
   <div class="stage" id="stage"></div>
   <script src="_engine.js"></script>
+  <script src="illustrations/icons.js"></script>
   <script>
   async function main() {
     const E = window.fineVideoEngine;
+    E.init();
     const params = new URLSearchParams(location.search);
     const isRender = params.get('render') === '1';
     const isDeterministic = params.get('deterministic') === '1';
     const data = await (await fetch(params.get('data') || 'data.json')).json();
     E.applyBrand(data.brand || {});
     document.getElementById('topicText').textContent = data.topic;
-    const stage = document.getElementById('stage');
+    document.getElementById('totalSteps').textContent = String(data.scenes.length).padStart(2, '0');
     if (isDeterministic) E.freezeTransitions();
     const progressFill = document.getElementById('progressFill');
+    const stage = document.getElementById('stage');
     const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
-      const codeCue = (s.visual_cues || []).find((c) => c.type === 'code');
-      const cueHtml = codeCue ? `<div class="cue"><pre class="cue-code">${E.escapeHtml(codeCue.content || '')}</pre></div>` : '';
+      const iconCue = (s.visual_cues || []).find((c) => c.type === 'icon');
+      const iconName = (iconCue && iconCue.name) || s.icon || 'terminal';
+      const codeCue = (s.visual_cues || []).find((c) => c.type === 'code' || c.type === 'terminal');
+      const iconHolder = document.createElement('div');
+      iconHolder.appendChild(E.renderIcon(iconName, { size: 64, color: 'var(--brand)' }));
+      const iconSvg = iconHolder.innerHTML;
+      // Format code: split lines, mark prompt vs output
+      let terminalHtml = '';
+      if (codeCue && codeCue.content) {
+        const lines = codeCue.content.split('\n');
+        terminalHtml = `<div class="terminal">${lines.map((line) => {
+          if (line.startsWith('$ ') || line.startsWith('git ') || line.startsWith('npm ') || line.startsWith('node ')) {
+            return `<span class="prompt">$ </span><span class="hl">${E.escapeHtml(line.replace(/^\$ /, ''))}</span>\n`;
+          }
+          return `<span class="output">${E.escapeHtml(line)}</span>\n`;
+        }).join('').replace(/\n$/, '')}</div>`;
+      }
       return `
         <div class="card">
-          <div class="chip">${i + 1}</div>
+          <div class="step-row">
+            <div class="chip">${i + 1}</div>
+            <div class="step-icon">${iconSvg}</div>
+            <div class="step-divider"></div>
+          </div>
           <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
           <div class="heading">${E.escapeHtml(s.heading || '')}</div>
           <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
+          ${terminalHtml}
         </div>
-        ${cueHtml}
       `;
     });
+    E.applyDecoration(document.body, { particles: { count: 16, colors: ['var(--brand)', 'var(--accent)'] } });
+
     const timeline = E.buildTimeline(data.scenes);
     const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
     window.__seek = seek;
@@ -75,16 +111,20 @@
     if (isRender && !isDeterministic) {
       const t0Start = performance.now();
       const origSeek = seek;
+      const curStepEl = document.getElementById('curStep');
       const seekWithProgress = (tMs) => {
         const r = origSeek(tMs);
         if (r.activeIdx === 0) {
           document.getElementById('topic').classList.add('show');
           document.getElementById('progressTrack').classList.add('show');
+          document.getElementById('sceneNumRow').classList.add('show');
         }
+        curStepEl.textContent = String(r.activeIdx + 1).padStart(2, '0');
         progressFill.style.width = ((r.activeIdx + 1) / data.scenes.length * 100) + '%';
         if (tMs >= r.totalMs - 600) {
           document.getElementById('topic').classList.remove('show');
           document.getElementById('progressTrack').classList.remove('show');
+          document.getElementById('sceneNumRow').classList.remove('show');
         }
         return r;
       };
@@ -93,6 +133,18 @@
         window.__t0_offset_ms = performance.now() - t0Start;
         window.__renderDone = true;
       });
+    } else if (!isRender) {
+      const t0Start = performance.now();
+      const curStepEl = document.getElementById('curStep');
+      function tick() {
+        const t = performance.now() - t0Start;
+        if (t >= timeline.totalMs) return;
+        const r = seek(t);
+        curStepEl.textContent = String(r.activeIdx + 1).padStart(2, '0');
+        progressFill.style.width = ((r.activeIdx + 1) / data.scenes.length * 100) + '%';
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
     }
   }
   main();

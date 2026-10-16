@@ -32,6 +32,7 @@ export const GenerateInputSchema = z.object({
   backgroundMusic: z.boolean().default(false),
   maxScenes: z.number().int().min(2).max(20).default(6),
   aiModel: z.string().default("default"),
+  presetScript: z.string().min(1).max(500).optional(),
   outputFilename: z
     .string()
     .min(1)
@@ -42,8 +43,20 @@ export const GenerateInputSchema = z.object({
 
 // ─── Scene schema (Step 1 output) ──────────────────────────
 export const VisualCueSchema = z.object({
-  type: z.enum(["text", "icon", "chart", "shape", "code", "image"]),
-  content: z.string(),
+  type: z.enum(["text", "icon", "chart", "shape", "code", "image", "terminal"]),
+  // Most cue types need `content`; icon/image cues may use `name`
+  // (a key into the Phosphor or custom illustration registry).
+  // `content` is auto-derived from `name` when missing.
+  content: z.string().optional(),
+  name: z.string().optional(),
+  // Visual customization (icons + images only).
+  size: z.number().optional(),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  color: z.string().optional(),
+  // Chart: { type: "chart", data: { Plan: 1, Pro: 4, Team: 12 } }
+  // or fallback parser splits `content` on ; and :
+  data: z.record(z.string(), z.number()).optional(),
   position: z.enum(["center", "left", "right", "top", "bottom"]).default("center"),
   animation: z
     .enum(["fade", "slide-up", "slide-left", "zoom", "none"])
