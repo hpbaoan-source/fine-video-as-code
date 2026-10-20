@@ -199,11 +199,17 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
   return { path: finalPath, filename, size: stat.size, t0OffsetMs, deterministic };
 }
 
+// Fallback title when a script has no explicit heading. A flat
+// 6-word slice cut sentences in half ("Bạn dùng Git mỗi ngày nhưng"),
+// which reads as broken copy on the card. Prefer the first complete
+// sentence, capped at 8 words.
 function deriveHeading(voiceover, language) {
   if (!voiceover) return "";
-  const cleaned = voiceover.replace(/[?.,!]/g, "").trim();
-  const words = cleaned.split(/\s+/).slice(0, 6);
-  return words.join(" ");
+  const firstSentence = voiceover.split(/(?<=[.!?])\s+/)[0] || voiceover;
+  const cleaned = firstSentence.replace(/[?.,!]+$/g, "").trim();
+  const words = cleaned.split(/\s+/);
+  if (words.length <= 8) return words.join(" ");
+  return words.slice(0, 8).join(" ").replace(/[,;:]$/, "");
 }
 
 // Minimal static file server for the render job. Serves files from

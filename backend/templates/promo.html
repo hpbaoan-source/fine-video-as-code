@@ -39,10 +39,45 @@
     .stat { text-align: center; }
     .stat-num { font-size: 72px; font-weight: 800; color: var(--accent); line-height: 1; }
     .stat-lbl { font-size: 22px; color: var(--dim); margin-top: 8px; letter-spacing: 2px; text-transform: uppercase; }
-    .footer-cta-row { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 24px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
+    .footer-cta-row { position: absolute; bottom: 168px; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 24px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; z-index: 6; }
     .scene.active .footer-cta-row { opacity: 1; }
     .footer-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--brand); }
     .footer-cta-row .cta-mini { background: var(--brand); color: #fff; font-size: 22px; font-weight: 700; padding: 14px 40px; border-radius: 50px; letter-spacing: 2px; }
+
+    /* ── Rich scenes ───────────────────────────────────────────
+       The engine anchors every enrichment block to the bottom of
+       the scene (position: absolute). On the promo template the
+       heading is 130px tall, so a bottom-anchored bullet list
+       landed right on top of it. Rich scenes therefore flow
+       everything in normal document order and shrink the hero +
+       heading to fit. */
+    .promo-body { display: flex; flex-direction: column; align-items: center; width: 100%; }
+    .promo-body .fv-bullets,
+    .promo-body .fv-metrics,
+    .promo-body .fv-snippet,
+    .promo-body .fv-diagram {
+      position: static;
+      transform: none;
+      left: auto; right: auto; bottom: auto;
+      margin-top: 26px;
+      width: auto;
+      max-width: 1300px;
+    }
+    .promo-body .fv-bullets { max-height: none; overflow: visible; gap: 12px; }
+    .promo-body .fv-bullet { font-size: 26px; padding: 12px 20px; }
+    .promo-body .fv-metrics { width: auto; max-width: 1400px; margin-left: auto; margin-right: auto; }
+    .promo-body .fv-metric-value { font-size: 46px; }
+    .promo-body .fv-metric-label { font-size: 13px; }
+    .promo-body .fv-snippet-body { font-size: 20px; max-height: none; overflow: visible; }
+    .promo-body .fv-diag-pill { font-size: 22px; }
+    .promo-body .fv-diag-step { font-size: 23px; }
+    .promo-body.rich .hero { margin-bottom: 22px; }
+    .promo-body.rich .icon-bubble { width: 150px; height: 150px; }
+    .promo-body.rich .icon-bubble svg { width: 110px; height: 110px; }
+    .promo-body.rich .hero .pulse-ring { width: 180px; height: 180px; }
+    .promo-body.rich .heading { font-size: 84px; }
+    .promo-body.rich .on-screen { font-size: 46px; margin-top: 16px; }
+    .promo-body.rich .fv-subheading { font-size: 26px; margin-bottom: 6px; }
   </style>
 </head>
 <body>
@@ -67,7 +102,10 @@
     const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
       const iconCue = (s.visual_cues || []).find((c) => c.type === 'icon');
       const iconName = (iconCue && iconCue.name) || s.icon || 'rocket';
-      const iconSize = (iconCue && iconCue.size) || 220;
+      const isRich = !!(s.bullets || s.metrics || s.codeSnippet || s.diagram);
+      // Rich scenes shrink the hero so the heading + enrichment
+      // blocks fit above the subtitle bar.
+      const iconSize = isRich ? 104 : ((iconCue && iconCue.size) || 220);
       const isLast = i === data.scenes.length - 1;
       const iconHolder = document.createElement('div');
       iconHolder.appendChild(E.renderIcon(iconName, { size: iconSize, color: 'var(--brand)' }));
@@ -82,20 +120,22 @@
       }
       return `
         ${E.renderHUD(data, i, data.scenes.length)}
-        <div class="hero">
-          <div class="pulse-ring"></div>
-          <div class="pulse-ring r2"></div>
-          <div class="icon-bubble">${iconSvg}</div>
+        <div class="promo-body${isRich ? ' rich' : ''}">
+          <div class="hero">
+            <div class="pulse-ring"></div>
+            <div class="pulse-ring r2"></div>
+            <div class="icon-bubble">${iconSvg}</div>
+          </div>
+          ${E.renderBadge(s.badge)}
+          <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+          ${E.renderSubheading(s.subheading)}
+          ${s.on_screen_text ? `<div class="on-screen">${E.escapeHtml(s.on_screen_text)}</div>` : ''}
+          ${E.renderBullets(s.bullets)}
+          ${E.renderMetrics(s.metrics)}
+          ${statsHtml}
+          ${E.renderCodeSnippet(s.codeSnippet)}
+          ${E.renderDiagram(s.diagram)}
         </div>
-        ${E.renderBadge(s.badge)}
-        <div class="heading">${E.escapeHtml(s.heading || '')}</div>
-        ${E.renderSubheading(s.subheading)}
-        <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
-        ${E.renderBullets(s.bullets)}
-        ${E.renderMetrics(s.metrics)}
-        ${statsHtml}
-        ${E.renderCodeSnippet(s.codeSnippet)}
-        ${E.renderDiagram(s.diagram)}
         ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
         ${isLast ? '<div class="footer-cta-row"><div class="footer-dot"></div><div class="cta-mini">LEARN MORE →</div><div class="footer-dot"></div></div>' : ''}
       `;

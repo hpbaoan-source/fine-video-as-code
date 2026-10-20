@@ -253,7 +253,11 @@ export async function step1Script(input, { onProgress, onLog } = {}) {
         voiceover: s.voiceover,
         duration_ms: ms,
         visual_cues: s.visual_cues || [{ type: "text", content: s.heading, position: "center", animation: "fade" }],
-        on_screen_text: s.heading || s.voiceover?.slice(0, 40),
+        // Preset scripts define the card title in `heading`; only
+        // pass on_screen_text through when the preset sets it
+        // explicitly, otherwise the accent line would just repeat
+        // the heading.
+        ...(s.on_screen_text ? { on_screen_text: s.on_screen_text } : {}),
         heading: s.heading,  // used by step 4 for big card
         // Enrichment fields — passed through if the preset script
         // defines them. Schema will reject extras; so only copy

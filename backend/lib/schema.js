@@ -69,6 +69,10 @@ export const SceneSchema = z.object({
   duration_ms: z.number().int().min(500).max(30000), // initial estimate
   visual_cues: z.array(VisualCueSchema).default([]),
   on_screen_text: z.string().optional(),
+  // Big card title. Without this field Zod strips it from every
+  // script and the templates fall back to a 6-word slice of the
+  // voiceover, which reads like a broken sentence.
+  heading: z.string().max(200).optional(),
 
   // ─── Enrichment fields (all optional, all rendered via the
   // shared _engine.js helpers so templates pick them up

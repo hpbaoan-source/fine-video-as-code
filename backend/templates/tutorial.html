@@ -21,19 +21,54 @@
     .topic { position: absolute; top: 40px; left: 60px; font-size: 24px; color: var(--dim); letter-spacing: 2px; font-weight: 500; opacity: 0; transition: opacity 0.5s; z-index: 10; }
     .topic.show { opacity: 1; }
     .topic .badge { color: var(--accent); font-weight: 700; margin-right: 12px; }
-    .progress-track { position: absolute; bottom: 60px; left: 50%; transform: translateX(-50%); width: 1600px; height: 6px; background: #374151; border-radius: 3px; opacity: 0; transition: opacity 0.5s; }
+    .progress-track { position: absolute; bottom: 124px; left: 50%; transform: translateX(-50%); width: 1600px; height: 6px; background: #374151; border-radius: 3px; opacity: 0; transition: opacity 0.5s; z-index: 6; }
     .progress-track.show { opacity: 1; }
     .progress-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--accent)); width: 0; border-radius: 3px; transition: width 0.6s ease-out; }
     .scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
     .scene.active { opacity: 1; }
-    .card { width: 1500px; height: 760px; background: var(--card); border: 2px solid var(--brand); border-radius: 20px; padding: 60px 80px; display: flex; flex-direction: column; justify-content: center; transform: translateX(1700px); transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s; opacity: 0; position: relative; }
-    .step-row { display: flex; align-items: center; gap: 32px; margin-bottom: 32px; }
+    /* Card fills the safe area between the top topic row and the
+       bottom subtitle bar. Fixed height used to make long scenes
+       overflow the card, so the box now spans a fixed band of the
+       frame and its content is centred inside it. */
+    .card { position: absolute; top: 96px; bottom: 150px; left: 0; right: 0; width: auto; height: auto; max-width: 1660px; margin: 0 auto; background: var(--card); border: 2px solid var(--brand); border-radius: 20px; padding: 36px 70px; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 0; transform: translateX(1700px); transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s; opacity: 0; }
+    .step-row { display: flex; align-items: center; gap: 32px; margin-bottom: 26px; flex-shrink: 0; }
     .chip { width: 96px; height: 96px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 800; color: #fff; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s; flex-shrink: 0; }
     .step-icon { color: var(--brand); opacity: 0.85; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s; }
     .step-divider { flex: 1; height: 2px; background: linear-gradient(90deg, var(--brand), transparent); opacity: 0.4; }
-    .heading { font-size: 60px; font-weight: 700; line-height: 1.1; max-width: 1300px; margin-bottom: 28px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
-    .on-screen { font-size: 44px; color: var(--brand); font-weight: 600; margin-bottom: 18px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; }
-    .terminal { background: var(--term-bg); border: 1px solid #1f2937; border-radius: 12px; padding: 20px 28px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 26px; color: var(--text); white-space: pre; max-width: 1300px; line-height: 1.5; margin-top: 20px; opacity: 0; transition: opacity 0.5s ease-out 0.8s; }
+    .heading { font-size: 52px; font-weight: 700; line-height: 1.12; max-width: 1400px; margin-bottom: 18px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; flex-shrink: 0; }
+    .on-screen { font-size: 40px; color: var(--brand); font-weight: 600; margin-bottom: 14px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; flex-shrink: 0; }
+    .terminal { background: var(--term-bg); border: 1px solid #1f2937; border-radius: 12px; padding: 20px 28px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 25px; color: var(--text); white-space: pre; max-width: 1400px; line-height: 1.5; margin-top: 22px; opacity: 0; transition: opacity 0.5s ease-out 0.8s; flex-shrink: 0; }
+
+    /* ── Enrichment blocks ──────────────────────────────────────
+       The shared engine styles every enrichment block as
+       position:absolute with a fixed bottom offset, which made
+       bullets / metrics / snippet / diagram stack on top of each
+       other inside the card. In the tutorial template they flow
+       in normal document order instead, so a scene can carry
+       several of them without any overlap. */
+    .card .fv-bullets,
+    .card .fv-metrics,
+    .card .fv-snippet,
+    .card .fv-diagram {
+      position: static;
+      transform: none;
+      left: auto; right: auto; bottom: auto;
+      margin-top: 20px;
+      max-width: 1400px;
+      width: auto;
+    }
+    .card .fv-bullets { max-height: none; overflow: visible; gap: 10px; }
+    .card .fv-badge { align-self: flex-start; width: fit-content; }
+    .card .fv-bullet { font-size: 26px; padding: 10px 18px; }
+    .card .fv-metrics { width: 100%; }
+    .card .fv-metric-value { font-size: 46px; }
+    .card .fv-metric-label { font-size: 14px; }
+    .card .fv-snippet-body { font-size: 20px; max-height: none; overflow: visible; }
+    .card .fv-diag-pill { font-size: 22px; }
+    .card .fv-diag-step { font-size: 23px; }
+    /* Subtitle bar belongs to the frame, not to the card — the card
+       has a transform, which would otherwise anchor it inside. */
+    .scene > .fv-subbar { position: absolute; bottom: 0; left: 0; right: 0; }
     .terminal .prompt { color: var(--term-prompt); }
     .terminal .output { color: var(--dim); }
     .terminal .hl { color: var(--accent); }
@@ -89,15 +124,15 @@
         }).join('').replace(/\n$/, '')}</div>`;
       }
       return `
+        ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
         <div class="card">
-          ${E.renderHUD(data, i, data.scenes.length)}
           <div class="step-row">
             <div class="chip">${i + 1}</div>
             <div class="step-icon">${iconSvg}</div>
             <div class="step-divider"></div>
           </div>
           ${E.renderBadge(s.badge)}
-          <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
+          ${s.on_screen_text ? `<div class="on-screen">${E.escapeHtml(s.on_screen_text)}</div>` : ''}
           <div class="heading">${E.escapeHtml(s.heading || '')}</div>
           ${E.renderSubheading(s.subheading)}
           ${E.renderBullets(s.bullets)}
@@ -105,7 +140,6 @@
           ${E.renderCodeSnippet(s.codeSnippet)}
           ${terminalHtml}
           ${E.renderDiagram(s.diagram)}
-          ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
         </div>
       `;
     });
