@@ -255,6 +255,15 @@ export async function step1Script(input, { onProgress, onLog } = {}) {
         visual_cues: s.visual_cues || [{ type: "text", content: s.heading, position: "center", animation: "fade" }],
         on_screen_text: s.heading || s.voiceover?.slice(0, 40),
         heading: s.heading,  // used by step 4 for big card
+        // Enrichment fields — passed through if the preset script
+        // defines them. Schema will reject extras; so only copy
+        // the keys the preset actually has.
+        ...(s.badge ? { badge: s.badge } : {}),
+        ...(s.subheading ? { subheading: s.subheading } : {}),
+        ...(s.bullets ? { bullets: s.bullets } : {}),
+        ...(s.metrics ? { metrics: s.metrics } : {}),
+        ...(s.codeSnippet ? { codeSnippet: s.codeSnippet } : {}),
+        ...(s.diagram ? { diagram: s.diagram } : {}),
       };
     });
     onProgress?.(100);

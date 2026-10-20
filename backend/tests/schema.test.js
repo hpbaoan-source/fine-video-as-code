@@ -154,3 +154,71 @@ test("VisualCueSchema defaults position to center, animation to fade", () => {
   assert.equal(v.position, "center");
   assert.equal(v.animation, "fade");
 });
+
+test("SceneSchema accepts all enrichment fields", () => {
+  const s = SceneSchema.parse({
+    id: "scene-1",
+    voiceover: "x",
+    duration_ms: 3000,
+    badge: "STEP 01 · HTTPS",
+    subheading: "Bảo mật là điều kiện tiên quyết",
+    bullets: ["Mã hoá đầu cuối", "Chứng chỉ số", "TLS 1.3"],
+    metrics: [
+      { value: "256-bit", label: "AES" },
+      { value: "1.3", label: "TLS VERSION" },
+    ],
+    codeSnippet: "$ curl https://example.com\n✓ Connection secure",
+    diagram: {
+      nodes: ["Client", "TLS Handshake", "Server"],
+      steps: ["Negotiate", "Verify cert", "Exchange keys"],
+    },
+  });
+  assert.equal(s.badge, "STEP 01 · HTTPS");
+  assert.equal(s.bullets.length, 3);
+  assert.equal(s.metrics.length, 2);
+  assert.equal(s.diagram.nodes.length, 3);
+});
+
+test("SceneSchema rejects bullet string over 200 chars", () => {
+  assert.throws(() =>
+    SceneSchema.parse({
+      id: "scene-1",
+      voiceover: "x",
+      duration_ms: 3000,
+      bullets: ["a".repeat(201)],
+    })
+  );
+});
+
+test("SceneSchema rejects more than 8 bullets", () => {
+  assert.throws(() =>
+    SceneSchema.parse({
+      id: "scene-1",
+      voiceover: "x",
+      duration_ms: 3000,
+      bullets: Array.from({ length: 9 }, (_, i) => `b${i}`),
+    })
+  );
+});
+
+test("SceneSchema rejects more than 4 metrics", () => {
+  assert.throws(() =>
+    SceneSchema.parse({
+      id: "scene-1",
+      voiceover: "x",
+      duration_ms: 3000,
+      metrics: Array.from({ length: 5 }, (_, i) => ({ value: `v${i}`, label: `l${i}` })),
+    })
+  );
+});
+
+test("SceneSchema without enrichment fields still validates", () => {
+  const s = SceneSchema.parse({
+    id: "scene-1",
+    voiceover: "x",
+    duration_ms: 3000,
+  });
+  assert.equal(s.bullets, undefined);
+  assert.equal(s.metrics, undefined);
+  assert.equal(s.badge, undefined);
+});

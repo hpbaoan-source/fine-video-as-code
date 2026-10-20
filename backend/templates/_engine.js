@@ -231,7 +231,8 @@ window.fineVideoEngine = (() => {
     );
   }
 
-  // Inject the @keyframes used by decoration (particles).
+  // Inject the @keyframes and shared enrichment CSS used by every
+  // template. Idempotent (re-call safe). Called once from init().
   function injectKeyframes() {
     if (document.getElementById("__fv_keyframes")) return;
     const style = document.createElement("style");
@@ -252,6 +253,239 @@ window.fineVideoEngine = (() => {
         0%, 100% { filter: drop-shadow(0 0 8px var(--brand)); }
         50%      { filter: drop-shadow(0 0 24px var(--brand)); }
       }
+
+      /* ─── Enrichment layer ────────────────────────────────────
+       * Shared across all 3 templates. Templates call the
+       * helpers in _engine.js and the styles below apply.
+       * Element opacity / transform is driven by tickEqualizer
+       * so deterministic renders (CSS transitions killed) still
+       * show motion. */
+
+      /* Top-of-frame HUD */
+      .fv-hud {
+        position: absolute; top: 0; left: 0; right: 0;
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 24px 56px; pointer-events: none; z-index: 5;
+      }
+      .fv-hud-left { display: flex; align-items: center; gap: 10px; }
+      .fv-hud-dot {
+        width: 10px; height: 10px; border-radius: 50%;
+        background: var(--brand);
+        box-shadow: 0 0 12px var(--brand);
+      }
+      .fv-hud-topic {
+        font-size: 14px; font-weight: 700; letter-spacing: 0.18em;
+        text-transform: uppercase; color: rgba(255,255,255,0.85);
+      }
+      .fv-hud-right { display: flex; align-items: center; }
+      .fv-hud-step {
+        font-size: 13px; font-weight: 600; letter-spacing: 0.12em;
+        padding: 6px 14px; border-radius: 999px;
+        background: rgba(255,255,255,0.08);
+        border: 1px solid rgba(255,255,255,0.16);
+        color: rgba(255,255,255,0.78);
+        backdrop-filter: blur(8px);
+      }
+
+      /* Bottom-of-frame subtitle bar */
+      .fv-subbar {
+        position: absolute; bottom: 0; left: 0; right: 0;
+        padding: 18px 56px 28px;
+        background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0));
+        z-index: 5;
+      }
+      .fv-eq {
+        display: flex; align-items: flex-end; gap: 4px;
+        height: 24px; margin-bottom: 10px;
+      }
+      .fv-eq-bar {
+        display: inline-block; width: 4px;
+        background: var(--brand); border-radius: 2px;
+        box-shadow: 0 0 8px var(--brand);
+      }
+      .fv-subbar-text {
+        position: relative; font-size: 22px; line-height: 1.4;
+        font-weight: 500; color: rgba(255,255,255,0.92);
+        max-width: 1500px;
+      }
+      .fv-subbar-progress {
+        position: absolute; left: 0; bottom: -8px;
+        height: 3px; width: 0%;
+        background: var(--brand);
+        box-shadow: 0 0 8px var(--brand);
+        border-radius: 2px;
+      }
+
+      /* Badge + subheading */
+      .fv-badge {
+        display: inline-block;
+        font-size: 13px; font-weight: 700; letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--brand);
+        padding: 6px 14px;
+        border: 1px solid var(--brand);
+        border-radius: 999px;
+        margin-bottom: 18px;
+      }
+      .fv-subheading {
+        font-size: 24px; line-height: 1.4;
+        color: rgba(255,255,255,0.7);
+        margin-bottom: 14px;
+        max-width: 1200px;
+      }
+
+      /* Bullets — anchored at the bottom of the scene so the flex
+       column layout above doesn't push them off-canvas. */
+      .fv-bullets {
+        list-style: none; padding: 0; margin: 0;
+        display: flex; flex-direction: column; gap: 8px;
+        max-width: 1300px;
+        position: absolute;
+        bottom: 130px;        /* above the subtitle bar */
+        left: 56px; right: 56px;
+        max-height: 260px;
+        overflow: hidden;
+      }
+      .fv-bullet {
+        display: flex; align-items: center; gap: 12px;
+        padding: 8px 14px;
+        background: rgba(255,255,255,0.05);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 10px;
+        font-size: 18px; font-weight: 500;
+        color: rgba(255,255,255,0.92);
+        will-change: transform, opacity;
+        flex-shrink: 0;
+      }
+      .fv-bullet-marker {
+        width: 8px; height: 8px; border-radius: 50%;
+        background: var(--brand);
+        flex-shrink: 0;
+        box-shadow: 0 0 8px var(--brand);
+      }
+
+      /* Metrics row — bottom-centred, above the subtitle bar. */
+      .fv-metrics {
+        display: grid;
+        margin: 0;
+        max-width: 1400px;
+        gap: 18px;
+        position: absolute;
+        bottom: 140px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: max-content;
+      }
+      .fv-metrics-count-1 { grid-template-columns: 1fr; max-width: 480px; }
+      .fv-metrics-count-2 { grid-template-columns: 1fr 1fr; max-width: 960px; }
+      .fv-metrics-count-3 { grid-template-columns: repeat(3, 1fr); max-width: 1440px; }
+      .fv-metrics-count-4 { grid-template-columns: repeat(4, 1fr); max-width: 1500px; }
+      .fv-metric {
+        padding: 16px 22px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 14px;
+        will-change: transform, opacity;
+      }
+      .fv-metric-value {
+        font-size: 40px; font-weight: 800; line-height: 1;
+        color: var(--brand);
+        letter-spacing: -0.02em;
+      }
+      .fv-metric-label {
+        margin-top: 6px;
+        font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: rgba(255,255,255,0.6);
+      }
+
+      /* Code snippet — anchored at the bottom of the scene, above
+       the subtitle bar. Sized to fit the canvas. */
+      .fv-snippet {
+        margin: 0;
+        background: rgba(0,0,0,0.55);
+        border: 1px solid rgba(255,255,255,0.10);
+        border-radius: 12px;
+        overflow: hidden;
+        max-width: 1100px;
+        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+        position: absolute;
+        bottom: 130px;
+        left: 56px;
+      }
+      .fv-snippet-bar {
+        display: flex; align-items: center; gap: 8px;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.05);
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+      }
+      .fv-snippet-dot {
+        width: 12px; height: 12px; border-radius: 50%;
+      }
+      .fv-dot-r { background: #ff5f57; }
+      .fv-dot-y { background: #febc2e; }
+      .fv-dot-g { background: #28c840; }
+      .fv-snippet-body {
+        margin: 0; padding: 14px 18px;
+        font-size: 14px; line-height: 1.5;
+        color: rgba(255,255,255,0.92);
+        white-space: pre-wrap; word-break: break-word;
+        max-height: 240px;
+        overflow-y: auto;
+      }
+      .fv-code-cmd    { color: #82aaff; }
+      .fv-code-comment { color: #6b7280; font-style: italic; }
+      .fv-code-ok     { color: #4ade80; }
+      .fv-code-warn   { color: #fbbf24; }
+
+      /* Diagram — anchored at the bottom of the scene. */
+      .fv-diagram {
+        margin: 0; max-width: 1400px;
+        position: absolute;
+        bottom: 140px;
+        left: 56px; right: 56px;
+      }
+      .fv-diag-nodes {
+        display: flex; align-items: center; flex-wrap: wrap;
+        gap: 4px;
+        padding: 14px;
+        background: rgba(255,255,255,0.03);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 14px;
+      }
+      .fv-diag-pill {
+        padding: 8px 18px;
+        background: var(--brand);
+        color: #fff;
+        border-radius: 999px;
+        font-size: 16px; font-weight: 700;
+        will-change: transform, opacity;
+      }
+      .fv-diag-arrow {
+        width: 32px; height: 16px; color: var(--brand); flex-shrink: 0;
+      }
+      .fv-diag-steps {
+        list-style: none; padding: 0; margin: 14px 0 0;
+        display: flex; flex-direction: column; gap: 8px;
+      }
+      .fv-diag-step {
+        display: flex; align-items: center; gap: 14px;
+        padding: 10px 14px;
+        background: rgba(255,255,255,0.04);
+        border: 1px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        font-size: 17px;
+        will-change: transform, opacity;
+      }
+      .fv-diag-step-num {
+        width: 30px; height: 30px;
+        display: inline-flex; align-items: center; justify-content: center;
+        background: var(--brand); color: #fff;
+        border-radius: 50%;
+        font-size: 13px; font-weight: 800;
+        flex-shrink: 0;
+      }
+      .fv-diag-step-text { color: rgba(255,255,255,0.92); }
     `;
     document.head.appendChild(style);
   }
@@ -308,6 +542,17 @@ window.fineVideoEngine = (() => {
             tMs < timeline.start[i] + timeline.intro
         );
       }
+      // Drive the per-frame animations that depend on time:
+      // equaliser bars + karaoke highlight. Same t_ms → same
+      // heights → bit-for-bit deterministic output.
+      const activeScene = scenes[activeIdx];
+      if (activeScene) {
+        tickEqualizer(
+          tMs,
+          timeline.start[activeIdx],
+          activeScene.duration_ms
+        );
+      }
       return { activeIdx, tMs, totalMs: timeline.totalMs };
     };
   }
@@ -347,6 +592,223 @@ window.fineVideoEngine = (() => {
     injectKeyframes();
   }
 
+  // ── Enrichment helpers ────────────────────────────────────
+  //
+  // All return HTML strings (or DOM nodes) that templates can
+  // drop into the scene with stagger via . They are designed to
+  // be silent no-ops when their input is empty / undefined, so
+  // templates can call them unconditionally — `engine.renderBullets(scene.bullets)`
+  // renders nothing when bullets is missing.
+
+  // Top-of-frame HUD: small accent dot + topic title on the left,
+  // step counter on the right. Hidden when no topic is provided.
+  function renderHUD(meta, sceneIdx, totalScenes) {
+    const topic = (meta && (meta.topic || (meta.meta && meta.meta.topic))) || "";
+    if (!topic) return "";
+    const safe = escapeHtml(topic);
+    const idx = (sceneIdx || 0) + 1;
+    const tot = totalScenes || 1;
+    return `
+      <div class="fv-hud">
+        <div class="fv-hud-left">
+          <span class="fv-hud-dot"></span>
+          <span class="fv-hud-topic">${safe}</span>
+        </div>
+        <div class="fv-hud-right">
+          <span class="fv-hud-step">${idx} / ${tot}</span>
+        </div>
+      </div>
+    `;
+  }
+
+  // Bottom-of-frame subtitle bar. Voiceover text gets a karaoke
+  // highlight that advances left→right through the sentence as
+  // tMs progresses. Five equaliser bars animate via
+  // tickEqualizer(tMs) — same input → same heights, so the
+  // render stays bit-for-bit deterministic.
+  function renderSubtitleBar(voiceover, sceneDurationMs) {
+    const text = escapeHtml(voiceover || "");
+    const bars = [0, 1, 2, 3, 4]
+      .map((i) => `<span class="fv-eq-bar" data-eq-i="${i}" style="height:6px"></span>`)
+      .join("");
+    return `
+      <div class="fv-subbar">
+        <div class="fv-eq">${bars}</div>
+        <div class="fv-subbar-text" data-fv-voiceover="${escapeHtml(voiceover || "")}">
+          ${text}
+        </div>
+        <div class="fv-subbar-progress" data-fv-progress></div>
+      </div>
+    `;
+  }
+
+  // Update the equaliser bars and the karaoke highlight for
+  // time tMs inside the active scene (sceneStartMs is the
+  // scene's t=0 in the global timeline). Also drives the
+  // entrance animation for bullets, metrics and diagram steps.
+  // State is set via inline styles so the deterministic render
+  // path (which disables all CSS transitions/animations) still
+  // produces visible motion.
+  function tickEqualizer(tMs, sceneStartMs, sceneDurationMs) {
+    const localMs = Math.max(0, Math.min(tMs - sceneStartMs, sceneDurationMs));
+    // Equaliser bars
+    document.querySelectorAll(".fv-eq-bar").forEach((bar) => {
+      const i = Number(bar.dataset.eqI) || 0;
+      const phase = (tMs * 0.005 + i * 1.7) % (Math.PI * 2);
+      const h = 6 + 16 * Math.abs(Math.sin(phase));
+      bar.style.height = `${h.toFixed(1)}px`;
+    });
+    // Karaoke progress
+    const frac = sceneDurationMs > 0 ? Math.min(1, localMs / sceneDurationMs) : 0;
+    document.querySelectorAll("[data-fv-progress]").forEach((el) => {
+      el.style.width = `${(frac * 100).toFixed(2)}%`;
+    });
+    // Bullets entrance (180ms stagger, 280ms duration)
+    document.querySelectorAll("[data-bullet-i]").forEach((el) => {
+      const i = Number(el.dataset.bulletI) || 0;
+      const t = localMs - i * 180;
+      const k = t <= 0 ? 0 : t >= 280 ? 1 : t / 280;
+      const eased = k * (2 - k); // ease-out quad
+      el.style.opacity = String(eased.toFixed(3));
+      el.style.transform = `translateX(${((1 - eased) * -30).toFixed(1)}px)`;
+    });
+    // Metrics entrance (140ms stagger, 260ms duration)
+    document.querySelectorAll("[data-metric-i]").forEach((el) => {
+      const i = Number(el.dataset.metricI) || 0;
+      const t = localMs - i * 140;
+      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
+      const eased = 1 - Math.pow(1 - k, 3); // ease-out cubic
+      el.style.opacity = String(eased.toFixed(3));
+      el.style.transform = `translateY(${((1 - eased) * 20).toFixed(1)}px) scale(${(0.85 + 0.15 * eased).toFixed(3)})`;
+    });
+    // Diagram step entrance (120ms stagger, 240ms duration)
+    document.querySelectorAll("[data-diag-step-i]").forEach((el) => {
+      const i = Number(el.dataset.diagStepI) || 0;
+      const t = localMs - i * 120;
+      const k = t <= 0 ? 0 : t >= 240 ? 1 : t / 240;
+      el.style.opacity = String(k.toFixed(3));
+      el.style.transform = `translateX(${((1 - k) * -20).toFixed(1)}px)`;
+    });
+    // Diagram pills entrance
+    document.querySelectorAll("[data-diag-i]").forEach((el) => {
+      const i = Number(el.dataset.diagI) || 0;
+      const t = localMs - i * 110;
+      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
+      el.style.opacity = String(k.toFixed(3));
+      el.style.transform = `scale(${(0.85 + 0.15 * k).toFixed(3)})`;
+    });
+  }
+
+  // Bullets: ordered list, slide-in from left with 180ms stagger.
+  // Visible only when bullets array is non-empty.
+  function renderBullets(bullets) {
+    if (!bullets || !bullets.length) return "";
+    const items = bullets
+      .map(
+        (b, i) =>
+          `<li class="fv-bullet" data-bullet-i="${i}"><span class="fv-bullet-marker"></span><span class="fv-bullet-text">${escapeHtml(
+            b
+          )}</span></li>`
+      )
+      .join("");
+    return `<ul class="fv-bullets">${items}</ul>`;
+  }
+
+  // Metrics: 1–4 stat cards. Each has a value (large) and an
+  // optional label (small caps). Falls back to a single card
+  // when only one metric is given.
+  function renderMetrics(metrics) {
+    if (!metrics || !metrics.length) return "";
+    const cards = metrics
+      .map((m, i) => {
+        const v = escapeHtml(m.value || "");
+        const l = escapeHtml(m.label || "");
+        return `
+          <div class="fv-metric" data-metric-i="${i}">
+            <div class="fv-metric-value">${v}</div>
+            ${l ? `<div class="fv-metric-label">${l}</div>` : ""}
+          </div>
+        `;
+      })
+      .join("");
+    return `<div class="fv-metrics fv-metrics-count-${Math.min(4, metrics.length)}">${cards}</div>`;
+  }
+
+  // Pill rendered just above the heading when scene.badge is set.
+  function renderBadge(text) {
+    if (!text) return "";
+    return `<div class="fv-badge">${escapeHtml(text)}</div>`;
+  }
+
+  // Accent subheading rendered just below the heading when
+  // scene.subheading is set.
+  function renderSubheading(text) {
+    if (!text) return "";
+    return `<div class="fv-subheading">${escapeHtml(text)}</div>`;
+  }
+
+  // Code snippet: terminal-card with red/yellow/green dots
+  // header. Highlights simple patterns:
+  //   - lines starting with "$ "        → blue
+  //   - lines starting with "# "        → grey italic
+  //   - lines starting with "✓ " or "OK " → green
+  //   - lines starting with "⚠ "        → amber
+  // Other lines render plain. No external syntax highlighter.
+  function renderCodeSnippet(snippet) {
+    if (!snippet) return "";
+    const lines = String(snippet)
+      .split(/\r?\n/)
+      .map((raw) => {
+        const safe = escapeHtml(raw);
+        if (/^\s*\$\s/.test(raw)) return `<span class="fv-code-cmd">${safe}</span>`;
+        if (/^\s*#\s/.test(raw)) return `<span class="fv-code-comment">${safe}</span>`;
+        if (/^\s*(✓|OK)\s/.test(raw)) return `<span class="fv-code-ok">${safe}</span>`;
+        if (/^\s*⚠\s/.test(raw)) return `<span class="fv-code-warn">${safe}</span>`;
+        return `<span>${safe}</span>`;
+      })
+      .join("\n");
+    return `
+      <div class="fv-snippet">
+        <div class="fv-snippet-bar">
+          <span class="fv-snippet-dot fv-dot-r"></span>
+          <span class="fv-snippet-dot fv-dot-y"></span>
+          <span class="fv-snippet-dot fv-dot-g"></span>
+        </div>
+        <pre class="fv-snippet-body">${lines}</pre>
+      </div>
+    `;
+  }
+
+  // Diagram: nodes (drawn as pills with SVG arrows between)
+  // plus an optional steps list rendered below. Used by
+  // tutorial.html when scene.diagram is set.
+  function renderDiagram(diagram) {
+    if (!diagram) return "";
+    const nodes = diagram.nodes || [];
+    const steps = diagram.steps || [];
+    if (!nodes.length && !steps.length) return "";
+    let nodesHtml = "";
+    if (nodes.length) {
+      const pills = nodes
+        .map((n, i) => `<div class="fv-diag-pill" data-diag-i="${i}">${escapeHtml(n)}</div>`)
+        .join('<svg class="fv-diag-arrow" viewBox="0 0 32 16" aria-hidden="true"><path d="M2 8 H26 M22 4 L26 8 L22 12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+      nodesHtml = `<div class="fv-diag-nodes">${pills}</div>`;
+    }
+    let stepsHtml = "";
+    if (steps.length) {
+      const items = steps
+        .map(
+          (s, i) =>
+            `<li class="fv-diag-step" data-diag-step-i="${i}"><span class="fv-diag-step-num">${String(
+              i + 1
+            ).padStart(2, "0")}</span><span class="fv-diag-step-text">${escapeHtml(s)}</span></li>`
+        )
+        .join("");
+      stepsHtml = `<ol class="fv-diag-steps">${items}</ol>`;
+    }
+    return `<div class="fv-diagram">${nodesHtml}${stepsHtml}</div>`;
+  }
+
   return {
     applyBrand,
     buildStage,
@@ -357,10 +819,20 @@ window.fineVideoEngine = (() => {
     escapeHtml,
     freezeTransitions,
     init,
-    // New rich-visual API
+    // Rich-visual API
     renderIcon,
     renderImage,
     renderChart,
     applyDecoration,
+    // Enrichment API (Phase 4 — integrated by templates when fields present)
+    renderHUD,
+    renderSubtitleBar,
+    tickEqualizer,
+    renderBullets,
+    renderMetrics,
+    renderBadge,
+    renderSubheading,
+    renderCodeSnippet,
+    renderDiagram,
   };
 })();

@@ -83,8 +83,16 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
       heading: s.heading || deriveHeading(s.voiceover, input.language),
       voiceover: s.voiceover,
       on_screen_text: s.on_screen_text,
-      visual_cues: s.visual_cues,
+      visual_cues: s.visual_cues || [],
       duration_ms: s.duration_ms || 3000,
+      // Enrichment fields — passed through if the script defines
+      // them; the templates will hide any element that has no value.
+      badge: s.badge,
+      subheading: s.subheading,
+      bullets: s.bullets || [],
+      metrics: s.metrics || [],
+      codeSnippet: s.codeSnippet,
+      diagram: s.diagram,
     })),
     brand: {
       brandColor: input.brandColor || "#3B82F6",
@@ -221,9 +229,27 @@ function startServer(mounts) {
         try {
           await fs.access(candidate);
           const ext = path.extname(candidate).toLowerCase();
-          const ct =
-            { ".html": "text/html", ".json": "application/json", ".js": "application/javascript" }[ext] ||
-            "application/octet-stream";
+                  const ct =
+                    {
+                      ".html": "text/html",
+                      ".json": "application/json",
+                      ".js": "application/javascript",
+                      ".css": "text/css",
+                      ".svg": "image/svg+xml",
+                      ".png": "image/png",
+                      ".jpg": "image/jpeg",
+                      ".jpeg": "image/jpeg",
+                      ".gif": "image/gif",
+                      ".webp": "image/webp",
+                      ".mp3": "audio/mpeg",
+                      ".wav": "audio/wav",
+                      ".ogg": "audio/ogg",
+                      ".mp4": "video/mp4",
+                      ".webm": "video/webm",
+                      ".ico": "image/x-icon",
+                      ".woff2": "font/woff2",
+                    }[ext] ||
+                    "application/octet-stream";
           res.writeHead(200, { "Content-Type": `${ct}; charset=utf-8` });
           fsSync.createReadStream(candidate).pipe(res);
         } catch {

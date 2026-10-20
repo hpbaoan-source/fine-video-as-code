@@ -83,15 +83,23 @@
         ).join('')}</div>`;
       }
       return `
+        ${E.renderHUD(data, i, data.scenes.length)}
         <div class="hero">
           <div class="pulse-ring"></div>
           <div class="pulse-ring r2"></div>
           <div class="icon-bubble">${iconSvg}</div>
         </div>
+        ${E.renderBadge(s.badge)}
         <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+        ${E.renderSubheading(s.subheading)}
         <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
         <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
+        ${E.renderBullets(s.bullets)}
+        ${E.renderMetrics(s.metrics)}
         ${statsHtml}
+        ${E.renderCodeSnippet(s.codeSnippet)}
+        ${E.renderDiagram(s.diagram)}
+        ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
         ${isLast ? '<div class="footer-cta-row"><div class="footer-dot"></div><div class="cta-mini">LEARN MORE →</div><div class="footer-dot"></div></div>' : ''}
       `;
     });

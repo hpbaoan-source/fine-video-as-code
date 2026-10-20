@@ -91,15 +91,23 @@
       }
       return `
         <div class="card">
+          ${E.renderHUD(data, i, data.scenes.length)}
           <div class="step-row">
             <div class="chip">${i + 1}</div>
             <div class="step-icon">${iconSvg}</div>
             <div class="step-divider"></div>
           </div>
+          ${E.renderBadge(s.badge)}
           <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
           <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+          ${E.renderSubheading(s.subheading)}
           <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
+          ${E.renderBullets(s.bullets)}
+          ${E.renderMetrics(s.metrics)}
+          ${E.renderCodeSnippet(s.codeSnippet)}
           ${terminalHtml}
+          ${E.renderDiagram(s.diagram)}
+          ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
         </div>
       `;
     });

@@ -69,6 +69,7 @@
       const iconSvg = iconHolder.innerHTML;
       return `
         <div class="scene-num"><strong>${String(i + 1).padStart(2, '0')}</strong>/ ${String(total).padStart(2, '0')}</div>
+        ${E.renderHUD(data, i, total)}
         <div class="decor-line left"></div>
         <div class="decor-line right"></div>
         <div style="position:relative;display:flex;align-items:center;justify-content:center;margin-bottom:32px;">
@@ -76,9 +77,16 @@
           <div class="pulse-ring" style="animation-delay:1.1s"></div>
           <div class="icon-wrap">${iconSvg}</div>
         </div>
+        ${E.renderBadge(s.badge)}
         <div class="heading">${E.escapeHtml(s.heading || '')}</div>
+        ${E.renderSubheading(s.subheading)}
         <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
         <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
+        ${E.renderBullets(s.bullets)}
+        ${E.renderMetrics(s.metrics)}
+        ${E.renderCodeSnippet(s.codeSnippet)}
+        ${E.renderDiagram(s.diagram)}
+        ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
       `;
     });
 

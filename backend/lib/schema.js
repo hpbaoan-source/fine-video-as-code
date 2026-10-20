@@ -69,6 +69,31 @@ export const SceneSchema = z.object({
   duration_ms: z.number().int().min(500).max(30000), // initial estimate
   visual_cues: z.array(VisualCueSchema).default([]),
   on_screen_text: z.string().optional(),
+
+  // ─── Enrichment fields (all optional, all rendered via the
+  // shared _engine.js helpers so templates pick them up
+  // automatically when present) ────────────────────────────────
+  // Pill above heading: e.g. "STEP 01 · GIT MASTERY".
+  badge: z.string().max(120).optional(),
+  // Smaller accent text under heading.
+  subheading: z.string().max(200).optional(),
+  // Ordered list, animate in with stagger 0.18s.
+  bullets: z.array(z.string().max(200)).max(8).optional(),
+  // 1–4 stat cards: { value, label? }.
+  metrics: z
+    .array(z.object({ value: z.string().max(40), label: z.string().max(80).optional() }))
+    .max(4)
+    .optional(),
+  // Inline code block (terminal-card style).
+  codeSnippet: z.string().max(2000).optional(),
+  // Two arrays: nodes (drawn as pills with arrow connectors) and
+  // steps (a sequenced list under the diagram).
+  diagram: z
+    .object({
+      nodes: z.array(z.string().max(60)).max(6).optional(),
+      steps: z.array(z.string().max(120)).max(6).optional(),
+    })
+    .optional(),
 });
 
 export const ScriptSchema = z.object({
