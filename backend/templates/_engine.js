@@ -306,7 +306,9 @@ window.fineVideoEngine = (() => {
       .fv-subbar-text {
         position: relative; font-size: 22px; line-height: 1.4;
         font-weight: 500; color: rgba(255,255,255,0.92);
-        max-width: 1500px;
+        max-width: 80%;         /* was 1500px; now % so centre stays clean on any viewport */
+        margin: 0 auto;         /* centre horizontally inside full-width subbar */
+        text-align: center;     /* wrap-drop text inside the centred block */
       }
       .fv-subbar-progress {
         position: absolute; left: 0; bottom: -8px;

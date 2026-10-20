@@ -32,7 +32,6 @@
     .step-icon { color: var(--brand); opacity: 0.85; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s; }
     .step-divider { flex: 1; height: 2px; background: linear-gradient(90deg, var(--brand), transparent); opacity: 0.4; }
     .heading { font-size: 60px; font-weight: 700; line-height: 1.1; max-width: 1300px; margin-bottom: 28px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; }
-    .voiceover { font-size: 32px; color: var(--dim); max-width: 1300px; line-height: 1.5; opacity: 0; transition: opacity 0.5s ease-out 0.7s; }
     .on-screen { font-size: 44px; color: var(--brand); font-weight: 600; margin-bottom: 18px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; }
     .terminal { background: var(--term-bg); border: 1px solid #1f2937; border-radius: 12px; padding: 20px 28px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 26px; color: var(--text); white-space: pre; max-width: 1300px; line-height: 1.5; margin-top: 20px; opacity: 0; transition: opacity 0.5s ease-out 0.8s; }
     .terminal .prompt { color: var(--term-prompt); }
@@ -41,9 +40,9 @@
     .scene.active .card { transform: translateX(0); opacity: 1; }
     .scene.active .chip { transform: scale(1); }
     .scene.active .step-icon { transform: scale(1); }
-    .scene.active .heading, .scene.active .voiceover, .scene.active .on-screen, .scene.active .terminal { opacity: 1; }
+    .scene.active .heading, .scene.active .on-screen, .scene.active .terminal { opacity: 1; }
     .scene.exiting .card { transform: translateX(-1700px); opacity: 0; }
-    .scene.exiting .heading, .scene.exiting .voiceover, .scene.exiting .on-screen, .scene.exiting .terminal { opacity: 0; }
+    .scene.exiting .heading, .scene.exiting .on-screen, .scene.exiting .terminal { opacity: 0; }
     .scene-num-row { position: absolute; top: 36px; right: 60px; display: flex; align-items: baseline; gap: 6px; z-index: 5; opacity: 0; transition: opacity 0.5s; }
     .scene-num-row.show { opacity: 1; }
     .scene-num-row .cur { color: var(--brand); font-size: 64px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
@@ -101,7 +100,6 @@
           <div class="on-screen">${E.escapeHtml(s.on_screen_text || '')}</div>
           <div class="heading">${E.escapeHtml(s.heading || '')}</div>
           ${E.renderSubheading(s.subheading)}
-          <div class="voiceover">${E.escapeHtml(s.voiceover || '')}</div>
           ${E.renderBullets(s.bullets)}
           ${E.renderMetrics(s.metrics)}
           ${E.renderCodeSnippet(s.codeSnippet)}
