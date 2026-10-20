@@ -26,7 +26,13 @@
       "visual_cue": "gói tin HTTP bị chặn",
       "visual_cues": [
         { "type": "icon", "name": "globe", "size": 200 }
-      ]
+      ],
+      "subheading": "Một cuộc tấn công man-in-the-middle có thể xảy ra bất cứ lúc nào — trong quán cà phê, sân bay, hoặc đường truyền của nhà mạng.",
+      "bullets": [
+        "Mật khẩu và cookie bị đọc trực tiếp",
+        "Kẻ tấn công có thể chèn mã độc vào response",
+        "Không có cách nào phát hiện nếu chỉ nhìn HTTP"
+]
     },
     {
       "id": "scene-3",
@@ -36,7 +42,17 @@
       "visual_cue": "sơ đồ TLS handshake",
       "visual_cues": [
         { "type": "icon", "name": "handshake", "size": 220 }
-      ]
+      ],
+      "badge": "BẮT TAY TLS",
+      "diagram": {
+        "nodes": ["Client", "TLS Handshake", "Server"],
+        "steps": [
+          "Client gửi danh sách cipher suites hỗ trợ",
+          "Server chọn cipher + gửi chứng chỉ số",
+          "Hai bên sinh khóa phiên chung qua Diffie-Hellman",
+          "Mọi byte dữ liệu sau đó đều được mã hóa"
+]
+      }
     },
     {
       "id": "scene-4",
@@ -46,7 +62,8 @@
       "visual_cue": "chuỗi chứng chỉ + verify",
       "visual_cues": [
         { "type": "icon", "name": "certificate", "size": 220 }
-      ]
+      ],
+      "codeSnippet": "# Trình duyệt tự động kiểm tra:\n✓ Certificate chain hợp lệ\n✓ Domain khớp với SAN entries\n✓ Chưa bị thu hồi (CRL / OCSP)\n✓ Chữ ký của CA đáng tin cậy\n⚠ Nếu thiếu 1 điều kiện → chặn kết nối"
     },
     {
       "id": "scene-5",
@@ -56,6 +73,11 @@
       "visual_cue": "Diffie-Hellman visualization",
       "visual_cues": [
         { "type": "icon", "name": "key", "size": 220 }
+      ],
+      "metrics": [
+        { "value": "X25519", "label": "Elliptic curve" },
+        { "value": "128-bit", "label": "Forward secrecy" },
+        { "value": "< 1 ms", "label": "Handshake time" }
       ]
     },
     {
@@ -66,6 +88,11 @@
       "visual_cue": "mã hóa AES",
       "visual_cues": [
         { "type": "icon", "name": "shield-check", "size": 220 }
+      ],
+      "metrics": [
+        { "value": "AES-256", "label": "Cipher" },
+        { "value": "GCM", "label": "Mode" },
+        { "value": "TLS 1.3", "label": "Protocol" }
       ]
     },
     {
@@ -76,7 +103,13 @@
       "visual_cue": "summary + ổ khóa",
       "visual_cues": [
         { "type": "icon", "name": "check", "size": 220 }
-      ]
+      ],
+      "badge": "TÓM LẠI",
+      "bullets": [
+        "Chứng chỉ số xác minh bạn nói chuyện đúng server",
+        "Diffie-Hellman sinh khóa chung không truyền qua mạng",
+        "AES-256 mã hóa mọi byte cho đến khi kết nối đóng"
+]
     }
   ]
 }

@@ -16,7 +16,16 @@
       "visual_cue": "intro hook",
       "visual_cues": [
         { "type": "icon", "name": "terminal", "size": 64 }
-      ]
+      ],
+      "badge": "5 LỆNH GIT",
+      "subheading": "Từ undo commit đến tìm bug trong 5 phút — không cần Google lần hai.",
+      "bullets": [
+        "reflog — cứu commit lỡ tay xóa",
+        "bisect — tìm commit gây bug",
+        "stash — gạt qua khi bị interrupt",
+        "worktree — làm 2 branch cùng lúc",
+        "rebase -i — dọn dẹp lịch sử"
+]
     },
     {
       "id": "scene-2",
@@ -27,6 +36,11 @@
       "visual_cues": [
         { "type": "icon", "name": "git-branch", "size": 64 },
         { "type": "terminal", "content": "git reflog\nabc1234 HEAD@{0}: reset: moving to main\ndef5678 HEAD@{1}: commit: add login flow\nghi9012 HEAD@{2}: commit: WIP on auth" }
+      ],
+      "metrics": [
+        { "value": "30 ngày", "label": "RETENTION" },
+        { "value": "Mọi HEAD", "label": "MOVEMENT" },
+        { "value": "Không mất", "label": "DÙ ĐÃ RESET" }
       ]
     },
     {
@@ -36,9 +50,18 @@
       "duration_ms": 18000,
       "visual_cue": "binary search visualization",
       "visual_cues": [
-        { "type": "icon", "name": "git-merge", "size": 64 },
-        { "type": "terminal", "content": "git bisect start\ngit bisect bad\ngit bisect good v1.0\ngit bisect run npm test\nabc1234 is the first bad commit" }
-      ]
+        { "type": "icon", "name": "git-merge", "size": 64 }
+      ],
+      "badge": "TÌM KIẾM NHỊ PHÂN",
+      "diagram": {
+        "nodes": ["v1.0 ✓", "bad HEAD ✗"],
+        "steps": [
+          "Chia đôi lịch sử commit",
+          "Test commit giữa — tốt hay xấu?",
+          "Loại bỏ nửa không chứa bug",
+          "Lặp lại đến khi còn 1 commit"
+        ]
+      }
     },
     {
       "id": "scene-4",
@@ -81,7 +104,15 @@
       "visual_cue": "summary card",
       "visual_cues": [
         { "type": "icon", "name": "check", "size": 64 }
-      ]
+      ],
+      "badge": "TỔNG KẾT",
+      "bullets": [
+        "reflog — cứu commit lỡ tay xóa",
+        "bisect — tìm commit gây bug trong vài phút",
+        "stash — gạt qua khi bị interrupt",
+        "worktree — làm 2 branch cùng lúc không cần clone",
+        "rebase -i — dọn dẹp lịch sử branch gọn như mới viết"
+]
     }
   ]
 }

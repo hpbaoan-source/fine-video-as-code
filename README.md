@@ -40,6 +40,21 @@ Per-template signature features:
 
 The same `_engine.js` powers all three — adding a new template = copy an existing HTML and tweak the layout. The shared cue vocabulary makes the templates look related without forcing them to be identical.
 
+### Enrichment fields
+
+Beyond the cue-based hero, every scene can carry optional enrichment fields in `script.json` (all rendered through the same `_engine.js`):
+
+| Field | What it adds | Used in |
+|---|---|---|
+| `badge` | Uppercase pill above the heading ("● 5 LỆNH GIT", "● MỘT NGÀY TRÒN VẸN") | samples 02, 03 |
+| `subheading` | Secondary line under the heading, brand color | samples 01 (steps), 02, 03 |
+| `bullets` | 2–5 short bullets with bullet-marker, fade-up stagger | samples 01 (scene 2), 02 (scene 3, 6), 03 (scene 1) |
+| `metrics` | Row of 2–3 value+label cards ("X25519 / ELLIPTIC CURVE", "< 1 ms / HANDSHAKE TIME") | samples 01 (scenes 5, 6), 02 |
+| `codeSnippet` | Terminal-style colored code block with traffic-light dots | sample 01 (scene 4), 02 |
+| `diagram` | 2 nodes + 3–5 numbered step boxes (binary-search visualization, etc.) | sample 03 (scene 3) |
+
+The HUD (`● TOPIC` top-left, large blue `02 / 07` scene indicator top-right) and the subtitle bar (equalizer icon + running voiceover text) are auto-injected on every scene; they need no extra fields. A scene with no enrichment renders as before, so adding enrichment is non-breaking.
+
 ---
 
 ## Why Playwright + HTML/CSS (and not Remotion)
@@ -139,18 +154,24 @@ Three real MP4s rendered end-to-end via the live server, committed to the repo. 
 
 | # | Sample | Template | Duration | Size | MP4 |
 |---|---|---|---|---|---|
-| 1 | How HTTPS Works | Tech Explainer | 95.9s | 1.83 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
-| 2 | Một ngày của lập trình viên | Promo / Ad | 69.9s | 1.98 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
-| 3 | 5 Git commands cứu mạng bạn | Tutorial | 110.9s | 2.07 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
+| 1 | How HTTPS Works | Tech Explainer | 95.9s | 2.36 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
+| 2 | Một ngày của lập trình viên | Promo / Ad | 69.9s | 2.36 MB | [video.mp4](samples/02-a-day-in-code/video.mp4) |
+| 3 | 5 Git commands cứu mạng bạn | Tutorial | 110.9s | 2.62 MB | [video.mp4](samples/03-git-5-commands/video.mp4) |
 
-**Frames from the rendered videos** (Phosphor icons, particles, terminal mockups):
+**Frames from the rendered videos** (Phosphor icons, particles, terminal mockups, code blocks, metric cards, bullet stacks):
 
 <p align="center">
-  <img src="docs/gallery/01-https-frame.png" width="48%" alt="Sample 01 - HTTPS handshake scene" />
+  <img src="docs/gallery/s01_t21.png" width="48%" alt="Sample 01 - HTTPS bullets scene" />
   &nbsp;
-  <img src="docs/gallery/02-dayincode-frame.png" width="48%" alt="Sample 02 - Bug debugging scene" />
+  <img src="docs/gallery/s01_t68.png" width="48%" alt="Sample 01 - Diffie-Hellman metric cards" />
   <br>
-  <img src="docs/gallery/03-git-frame.png" width="48%" alt="Sample 03 - git stash terminal mockup" />
+  <img src="docs/gallery/s02_t30.png" width="48%" alt="Sample 02 - Bug bullets + subtitle bar" />
+  &nbsp;
+  <img src="docs/gallery/s02_t75.png" width="48%" alt="Sample 02 - Conclusion badge + bullets + CTA" />
+  <br>
+  <img src="docs/gallery/s03_t45.png" width="48%" alt="Sample 03 - git bisect diagram" />
+  &nbsp;
+  <img src="docs/gallery/s01_t82.png" width="48%" alt="Sample 01 - AES metrics scene" />
 </p>
 
 Each sample folder has the hand-written `script.json` used by the pipeline — useful for debugging, replay, or as a starting template for new demos. Re-render any sample with:

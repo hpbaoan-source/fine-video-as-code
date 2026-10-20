@@ -36,6 +36,12 @@
       "visual_cue": "bug + log + Stack Overflow",
       "visual_cues": [
         { "type": "icon", "name": "bug", "size": 260 }
+      ],
+      "subheading": "Câu chuyện muôn thuở — 45 phút debug một dấu phẩy.",
+      "bullets": [
+        "Mở log → thấy stack trace ở dòng 142",
+        "Mở debugger → đặt breakpoint, step từng dòng",
+        "Mở Stack Overflow → tìm cách sửa cùng pattern"
       ]
     },
     {
@@ -46,6 +52,11 @@
       "visual_cue": "PR review",
       "visual_cues": [
         { "type": "icon", "name": "eye", "size": 260 }
+      ],
+      "metrics": [
+        { "value": "3", "label": "COMMENTS" },
+        { "value": "2", "label": "SUGGESTIONS" },
+        { "value": "1", "label": "PRAISE" }
       ]
     },
     {
@@ -56,7 +67,8 @@
       "visual_cue": "deploy + CI green",
       "visual_cues": [
         { "type": "icon", "name": "rocket", "size": 260 }
-      ]
+      ],
+      "codeSnippet": "$ git push origin feat/auth\n✓ CI: 14 jobs green\n✓ Deploy: staging-up-3\n⚠ Manual smoke-test required before prod"
     },
     {
       "id": "scene-6",
@@ -67,7 +79,13 @@
       "visual_cues": [
         { "type": "icon", "name": "lightbulb", "size": 260 }
       ],
-      "stats": { "DEV/MO": "1.2K", "HOURS/DAY": "8", "COFFEE/DAY": "3" }
+      "badge": "MỘT NGÀY TRỌN VẸN",
+      "bullets": [
+        "Sáng: bắt đầu với 1 task nhỏ — không cố ôm đồm",
+        "Trưa: debug như Sherlock Holmes — bình tĩnh đọc log",
+        "Chiều: review code đồng đội — học cách họ nghĩ",
+        "Tối: ship và thở — công việc thật sự bắt đầu từ đây"
+      ]
     }
   ]
 }
