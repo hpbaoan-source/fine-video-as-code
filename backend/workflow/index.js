@@ -17,6 +17,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { jobStore } from "../lib/job-store.js";
 import { cleanupWorkDir } from "../lib/cleanup.js";
+import { jobWorkDir } from "../lib/paths.js";
 import { step1Script } from "./step1-script.js";
 import { step2TTS } from "./step2-tts.js";
 import { step4Render } from "./step4-render.js";
@@ -28,7 +29,7 @@ const STEPS = [
 ];
 
 export async function runWorkflow(job) {
-  const workDir = path.join(process.cwd(), "tmp", "jobs", job.id);
+  const workDir = jobWorkDir(job.id);
   await fs.mkdir(workDir, { recursive: true });
   jobStore.setStatus(job.id, "running", { workDir });
   jobStore.emit(job.id, { type: "log", message: `Workdir: ${workDir}` });
@@ -43,6 +44,7 @@ export async function runWorkflow(job) {
       script: null,
       audioDir: null,
       renderOutput: null,
+      warnings: [],
     },
     onLog: (msg) => jobStore.emit(job.id, { type: "log", message: msg }),
     onProgress: (step, percent) =>
@@ -71,13 +73,24 @@ export async function runWorkflow(job) {
   // setStatus emits {type: "complete"} for us, so don't also emit
   // it from here — emitting it twice makes SSE clients see two
   // "complete" events and close the stream twice.
+  if (!ctx.state.renderOutput?.path) {
+    throw new Error("Render step finished without producing an output file");
+  }
   const finalPath = ctx.state.renderOutput.path;
   const finalFilename = ctx.state.renderOutput.filename;
   const stat = await fs.stat(finalPath);
+  // Total timeline length = sum of the (TTS-measured) scene
+  // durations. Reported to the client as `duration_ms`.
+  const durationMs = (ctx.state.script?.scenes || []).reduce(
+    (acc, s) => acc + (s.duration_ms || 0),
+    0
+  );
   jobStore.setStatus(job.id, "completed", {
     outputPath: finalPath,
     outputFilename: finalFilename,
     outputSize: stat.size,
+    outputDurationMs: durationMs || null,
+    warnings: ctx.state.warnings || [],
   });
 }
 
@@ -107,6 +120,9 @@ async function runStep2(ctx) {
     onProgress: (p) => ctx.onProgress("tts", p),
   });
   ctx.state.audioDir = tts.audioDir;
+  // Keep the warnings (e.g. a TTS clip that fell back to silence)
+  // so they can be reported with the terminal `complete` event.
+  ctx.state.warnings = tts.warnings || [];
   // Persist the updated script so the disk artifact matches what
   // step 4 will render.
   await fs.writeFile(

@@ -13,8 +13,30 @@
 // template-only.
 // ──────────────────────────────────────────────────────────────
 
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { dirname } from "node:path";
 import { ScriptSchema } from "../lib/schema.js";
+import { normalizeTemplate } from "../lib/design-system.js";
+import { resolveInside } from "../lib/path-guard.js";
 import { complete } from "../lib/llm-client.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Preset scripts are user-supplied paths. Only files that live
+// inside the repository's `samples/` directory may be read —
+// anything else (absolute paths, `../../etc/passwd`) is rejected.
+const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const PRESET_ROOT = path.join(REPO_ROOT, "samples");
+
+// Scene duration bounds — mirrors SceneSchema in lib/schema.js.
+export const MIN_SCENE_DURATION_MS = 500;
+export const MAX_SCENE_DURATION_MS = 30000;
+
+// Hard ceiling on the number of scenes a script may contain
+// (mirrors ScriptSchema.scenes.max).
+export const MAX_SCENES = 20;
 
 // Estimate TTS duration. Vietnamese TTS runs ~900-1000 characters
 // per minute at natural pace; English is ~150-160 words per minute.
@@ -82,8 +104,11 @@ function buildTemplateScript(input) {
       id: `scene-${i + 1}`,
       voiceover,
       duration_ms: estimateDurationMs(voiceover, input.language),
-      visual_cues: generateVisualCuesForRole(input, p, i, tmpl.visualMix),
+      visual_cues: generateVisualCuesForRole(input, p, i, pattern.length, tmpl.visualMix),
       on_screen_text: deriveOnScreenText(voiceover, input.language),
+      // The scene's structural role ("hook", "deep-dive", …).
+      // Used as the LLM hint; stripped by ScriptSchema.parse.
+      role_hint: p.role,
     };
   });
 
@@ -144,7 +169,7 @@ function generateVoiceoverForRole(input, p, idx, total) {
   }
 }
 
-function generateVisualCuesForRole(input, p, idx, visualMix) {
+function generateVisualCuesForRole(input, p, idx, total, visualMix) {
   // Pick 1-2 visual cues per scene, varying the type
   const cues = [];
   const primary = visualMix[idx % visualMix.length];
@@ -154,7 +179,10 @@ function generateVisualCuesForRole(input, p, idx, visualMix) {
     position: "center",
     animation: idx === 0 ? "fade" : (idx % 2 === 0 ? "slide-up" : "zoom"),
   });
-  if (idx === 0 || idx === p.intent.length - 1) {
+  // The topic banner belongs to the first and the last scene.
+  // `total` is the *number of scenes* — comparing the scene index
+  // with the length of the intent string only ever tagged scene 1.
+  if (idx === 0 || idx === total - 1) {
     cues.push({
       type: "text",
       content: input.topic,
@@ -193,7 +221,7 @@ Template: ${input.template}
 Total duration: ${input.duration}s
 
 Script to rewrite:
-${JSON.stringify(script.scenes.map((s) => ({ id: s.id, role_hint: s.visual_cues[0]?.content, voiceover: s.voiceover })), null, 2)}
+${JSON.stringify(script.scenes.map((s) => ({ id: s.id, role_hint: s.role_hint || s.heading || s.visual_cues?.[0]?.content || "", voiceover: s.voiceover })), null, 2)}
 
 Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
 
@@ -224,6 +252,67 @@ Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
   return script;
 }
 
+// ─── Helpers ────────────────────────────────────────────────
+
+/**
+ * Number of scenes the built-in template structures produce.
+ * Used by the API layer to validate the requested duration:
+ * a scene can never be longer than MAX_SCENE_DURATION_MS.
+ */
+export function templateSceneCount(template) {
+  const key = normalizeTemplate(template) ?? template;
+  return TEMPLATES[key]?.pattern.length ?? 0;
+}
+
+/**
+ * Spread `targetMs` over the scenes proportionally to their
+ * current duration and clamp every scene into the schema range
+ * [MIN_SCENE_DURATION_MS, MAX_SCENE_DURATION_MS].
+ *
+ * Returns the total that was actually allocated (it can differ
+ * from `targetMs` when a scene had to be clamped).
+ */
+export function distributeDurations(scenes, targetMs) {
+  const n = scenes.length;
+  if (n === 0) return 0;
+  const raw = scenes.map((s) => Math.max(0, Number(s.duration_ms) || 0));
+  const sum = raw.reduce((a, b) => a + b, 0);
+  const scale = sum > 0 ? targetMs / sum : targetMs / n;
+  let acc = 0;
+  for (let i = 0; i < n; i++) {
+    // The last scene absorbs the rounding remainder.
+    let ms = i === n - 1 ? targetMs - acc : Math.round(raw[i] * scale);
+    ms = Math.min(MAX_SCENE_DURATION_MS, Math.max(MIN_SCENE_DURATION_MS, ms));
+    scenes[i].duration_ms = ms;
+    acc += ms;
+  }
+  return acc;
+}
+
+/**
+ * Resolve a user-supplied `presetScript` path.
+ * Only JSON files inside the repository's `samples/` directory are
+ * allowed — the field is user input and used to be joined onto
+ * the cwd, which allowed reading arbitrary local files.
+ */
+export function resolvePresetScript(presetScript) {
+  // Relative paths are resolved against the repository root — the
+  // historic usage is "samples/<name>/script.json".
+  const candidate = path.isAbsolute(presetScript)
+    ? presetScript
+    : path.join(REPO_ROOT, presetScript);
+  const fp = resolveInside(PRESET_ROOT, candidate);
+  if (!fp) {
+    throw new Error(
+      `presetScript must point to a JSON file inside the repository's samples/ directory (got: "${presetScript}")`
+    );
+  }
+  if (path.extname(fp).toLowerCase() !== ".json") {
+    throw new Error(`presetScript must be a .json file (got: "${presetScript}")`);
+  }
+  return fp;
+}
+
 // ─── Public API ────────────────────────────────────────────
 export async function step1Script(input, { onProgress, onLog } = {}) {
   onLog?.("Building template structure...");
@@ -232,49 +321,53 @@ export async function step1Script(input, { onProgress, onLog } = {}) {
   // ─── Preset script shortcut (used by demos and curated samples) ──
   if (input.presetScript) {
     const { readFileSync } = await import("node:fs");
-    const path = await import("node:path");
-    const fp = path.isAbsolute(input.presetScript)
-      ? input.presetScript
-      : path.join(process.cwd(), input.presetScript);
-    const preset = JSON.parse(readFileSync(fp, "utf8"));
+    const fp = resolvePresetScript(input.presetScript);
+    let preset;
+    try {
+      preset = JSON.parse(readFileSync(fp, "utf8"));
+    } catch (err) {
+      throw new Error(`Could not read preset script "${fp}": ${err.message}`);
+    }
+    if (!Array.isArray(preset.scenes) || preset.scenes.length === 0) {
+      throw new Error(`Preset script "${fp}" has no scenes`);
+    }
     onLog?.(`Using preset script: ${fp} (${preset.scenes.length} scenes)`);
     onProgress?.(60);
     // Normalize scene shape to match the schema (id, voiceover, duration_ms required)
     const target = input.duration * 1000;
-    const sum = preset.scenes.reduce((s, sc) => s + (sc.duration_ms || 0), 0);
-    const ratio = sum > 0 && Math.abs(sum - target) > 100 ? target / sum : 1;
-    let acc = 0;
-    const scenes = preset.scenes.map((s, i) => {
-      let ms = Math.round((s.duration_ms || 0) * ratio);
-      if (i === preset.scenes.length - 1) ms = target - acc;
-      acc += ms;
-      return {
-        id: s.id || `scene-${i + 1}`,
-        voiceover: s.voiceover,
-        duration_ms: ms,
-        visual_cues: s.visual_cues || [{ type: "text", content: s.heading, position: "center", animation: "fade" }],
-        // Preset scripts define the card title in `heading`; only
-        // pass on_screen_text through when the preset sets it
-        // explicitly, otherwise the accent line would just repeat
-        // the heading.
-        ...(s.on_screen_text ? { on_screen_text: s.on_screen_text } : {}),
-        heading: s.heading,  // used by step 4 for big card
-        // Enrichment fields — passed through if the preset script
-        // defines them. Schema will reject extras; so only copy
-        // the keys the preset actually has.
-        ...(s.badge ? { badge: s.badge } : {}),
-        ...(s.subheading ? { subheading: s.subheading } : {}),
-        ...(s.bullets ? { bullets: s.bullets } : {}),
-        ...(s.metrics ? { metrics: s.metrics } : {}),
-        ...(s.codeSnippet ? { codeSnippet: s.codeSnippet } : {}),
-        ...(s.diagram ? { diagram: s.diagram } : {}),
-      };
-    });
+    const scenes = preset.scenes.map((s, i) => ({
+      id: s.id || `scene-${i + 1}`,
+      voiceover: s.voiceover,
+      duration_ms: s.duration_ms || 0,
+      visual_cues: s.visual_cues || [{ type: "text", content: s.heading, position: "center", animation: "fade" }],
+      // Preset scripts define the card title in `heading`; only
+      // pass on_screen_text through when the preset sets it
+      // explicitly, otherwise the accent line would just repeat
+      // the heading.
+      ...(s.on_screen_text ? { on_screen_text: s.on_screen_text } : {}),
+      heading: s.heading,  // used by step 4 for big card
+      // Caption of what the viewer is looking at.
+      ...(s.visual_cue ? { visual_cue: s.visual_cue } : {}),
+      // Explicit layout variant, if the preset pins one.
+      ...(s.layout ? { layout: s.layout } : {}),
+      // Enrichment fields — passed through if the preset script
+      // defines them. Schema will reject extras; so only copy
+      // the keys the preset actually has.
+      ...(s.badge ? { badge: s.badge } : {}),
+      ...(s.subheading ? { subheading: s.subheading } : {}),
+      ...(s.bullets ? { bullets: s.bullets } : {}),
+      ...(s.metrics ? { metrics: s.metrics } : {}),
+      ...(s.codeSnippet ? { codeSnippet: s.codeSnippet } : {}),
+      ...(s.diagram ? { diagram: s.diagram } : {}),
+    }));
+    // Spread the requested duration over the preset scenes and
+    // clamp every scene into the schema range.
+    const allocated = distributeDurations(scenes, target);
     onProgress?.(100);
     return ScriptSchema.parse({
       template: preset.template || input.template,
       language: preset.language || input.language,
-      total_duration_ms: target,
+      total_duration_ms: allocated,
       scenes,
       meta: {
         generated_by: "preset",
@@ -293,22 +386,13 @@ export async function step1Script(input, { onProgress, onLog } = {}) {
   const enriched = await maybeRewriteWithLLM(draft, input);
   onProgress?.(80);
 
-  // Normalize durations to sum exactly to target total
+  // Normalize durations: spread them over the requested total and
+  // clamp each scene into [500ms, 30000ms] — the SceneSchema
+  // range. A scene outside that range made Zod reject the whole
+  // script (every duration > 180s used to fail).
   const target = input.duration * 1000;
-  const sum = enriched.scenes.reduce((s, x) => s + x.duration_ms, 0);
-  if (sum !== target && sum > 0) {
-    const ratio = target / sum;
-    let acc = 0;
-    for (let i = 0; i < enriched.scenes.length; i++) {
-      if (i === enriched.scenes.length - 1) {
-        enriched.scenes[i].duration_ms = target - acc;
-      } else {
-        enriched.scenes[i].duration_ms = Math.round(enriched.scenes[i].duration_ms * ratio);
-        acc += enriched.scenes[i].duration_ms;
-      }
-    }
-    enriched.total_duration_ms = target;
-  }
+  const allocated = distributeDurations(enriched.scenes, target);
+  enriched.total_duration_ms = allocated;
   onProgress?.(100);
 
   // Validate

@@ -16,38 +16,29 @@ import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import ffmpegStatic from "ffmpeg-static";
-import { LanguageEnum, VoicePresets } from "../lib/schema.js";
+import { validateVoice } from "../lib/voice.js";
 
 const execFileP = promisify(execFile);
 const FFMPEG_BIN = ffmpegStatic;
-const FFMPEG_OPTS = { maxBuffer: 5 * 1024 * 1024 };
-// Whitelist of voices the API accepts. Reject unknown voices with 400.
-// Listed by language family. See https://learn.microsoft.com/azure/ai-services/speech-service/language-support
-const VOICE_FALLBACKS = {
-  vi: ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural"],
-  en: ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural", "en-US-DavisNeural"],
-};
+const FFMPEG_OPTS = { maxBuffer: 5 * 1024 * 1024, windowsHide: true };
+// Shortest clip we are willing to produce (mirrors SceneSchema).
+const MIN_SCENE_MS = 500;
 
 export async function step2TTS(script, { input, workDir, onLog, onProgress }) {
   const audioDir = path.join(workDir, "audio");
   await fs.mkdir(audioDir, { recursive: true });
   const warnings = [];
 
-  // Validate language. Voice is validated against the per-language
-  // whitelist below; an unknown voice is rejected with HTTP 400
-  // rather than silently swapped for a different voice.
-  const langResult = LanguageEnum.safeParse(input.language);
-  if (!langResult.success) {
-    throw new Error(`Unsupported language: ${input.language}. Use "vi" or "en".`);
+  // Validate language + voice against the single shared helper
+  // (lib/voice.js) — the API route uses the same check, so a
+  // request can no longer be accepted here and rejected there.
+  const voiceCheck = validateVoice(input.language, input.voice);
+  if (!voiceCheck.ok) {
+    throw new Error(voiceCheck.error);
   }
-  const lang = langResult.data;
-  const allowedVoices = VOICE_FALLBACKS[lang];
-  if (!allowedVoices.includes(input.voice)) {
-    throw new Error(
-      `Invalid voice: "${input.voice}". Pick one of: ${allowedVoices.join(", ")}`
-    );
-  }
-  const candidates = [input.voice, ...allowedVoices.filter((v) => v !== input.voice)];
+  const lang = voiceCheck.language;
+  const allowedVoices = voiceCheck.allowed || [];
+  const candidates = [voiceCheck.voice, ...allowedVoices.filter((v) => v !== voiceCheck.voice)];
 
   const total = script.scenes.length;
   for (let i = 0; i < total; i++) {
@@ -95,9 +86,22 @@ export async function step2TTS(script, { input, workDir, onLog, onProgress }) {
     // from stderr.
     const actualMs = await probeMp3DurationMs(outMp3);
     if (!Number.isFinite(actualMs) || actualMs <= 0) {
-      onLog?.(`[warn] ${scene.id}: probe returned ${actualMs}ms, using 1000ms`);
+      // The clip could not be measured. Writing a 1s silent file
+      // and *keeping* the planned duration would leave the audio
+      // 12s shorter than the video timeline — the video would be
+      // truncated by `-shortest`. Instead we write a silent clip
+      // that is exactly as long as the scene, so audio and video
+      // stay in sync no matter what.
+      const plannedMs = Math.max(MIN_SCENE_MS, Number(scene.duration_ms) || 0);
+      onLog?.(
+        `[warn] ${scene.id}: probe returned ${actualMs}ms — writing ${plannedMs}ms of silence`
+      );
       warnings.push(`probe_failed:${scene.id}`);
-      await createSilentMp3(outMp3, 1.0);
+      await createSilentMp3(outMp3, plannedMs / 1000);
+      const silentMs = await probeMp3DurationMs(outMp3);
+      scene.duration_ms =
+        Number.isFinite(silentMs) && silentMs > 0 ? silentMs : plannedMs;
+      onProgress?.(Math.round(((i + 1) / total) * 100));
       continue;
     }
 
@@ -161,8 +165,13 @@ export async function probeMp3DurationMs(file) {
 // file in one invocation.
 export async function padMp3ToDuration(srcMp3, targetSec) {
   const tmpOut = srcMp3 + ".tmp.mp3";
-  await execFileP(FFMPEG_BIN, padMp3Args(srcMp3, tmpOut, targetSec), FFMPEG_OPTS);
-  await fs.rename(tmpOut, srcMp3);
+  try {
+    await execFileP(FFMPEG_BIN, padMp3Args(srcMp3, tmpOut, targetSec), FFMPEG_OPTS);
+    await fs.rename(tmpOut, srcMp3);
+  } finally {
+    // Never leave a half-written *.tmp.mp3 behind.
+    await fs.unlink(tmpOut).catch(() => {});
+  }
 }
 
 // Pure function: build the ffmpeg argv for padMp3ToDuration.

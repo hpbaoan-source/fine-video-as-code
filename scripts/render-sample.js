@@ -53,7 +53,6 @@ const input = GenerateInputSchema.parse({
   outputFilename: "video",
 });
 
-const jobId = `sample-${sampleName}-${Date.now()}`;
 const job = jobStore.create(input);
 console.log(`▶ Rendering ${sampleName} (jobId=${job.id})`);
 

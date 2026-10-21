@@ -3,9 +3,17 @@
 // ──────────────────────────────────────────────────────────────
 
 import { z } from "zod";
+import { normalizeTemplate } from "./design-system.js";
 
 // ─── Templates ──────────────────────────────────────────────
-export const TemplateEnum = z.enum(["tech-explainer", "promo", "tutorial"]);
+//
+// Accept the canonical names plus the aliases that appear in
+// hand-written scripts ("top-list", "howto", "ad", …) and fold
+// them onto the canonical template before validation.
+export const TemplateEnum = z.preprocess(
+  (value) => normalizeTemplate(value) ?? value,
+  z.enum(["tech-explainer", "promo", "tutorial"])
+);
 export const LanguageEnum = z.enum(["vi", "en"]);
 export const AspectEnum = z.enum(["16:9", "9:16", "1:1", "4:3"]);
 export const ResolutionEnum = z.enum(["480p", "720p", "1080p", "1440p", "2160p"]);
@@ -73,6 +81,13 @@ export const SceneSchema = z.object({
   // script and the templates fall back to a 6-word slice of the
   // voiceover, which reads like a broken sentence.
   heading: z.string().max(200).optional(),
+  // Short caption describing what the viewer is looking at
+  // ("ổ khóa trên URL", "sơ đồ TLS handshake"). Rendered as a
+  // caption chip under the heading.
+  visual_cue: z.string().max(120).optional(),
+  // Layout variant for the scene: title | split | stack.
+  // When omitted the design-system middleware picks one.
+  layout: z.enum(["title", "split", "stack"]).optional(),
 
   // ─── Enrichment fields (all optional, all rendered via the
   // shared _engine.js helpers so templates pick them up
@@ -111,6 +126,7 @@ export const ScriptSchema = z.object({
       generated_at: z.string(),
       topic: z.string(),
     })
+    .passthrough()
     .default({}),
 });
 

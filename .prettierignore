@@ -1,0 +1,27 @@
+# Files prettier must not touch.
+node_modules/
+tmp/
+output/
+test-results/
+playwright-report/
+
+# Lockfiles are generated — never reformat them.
+package-lock.json
+
+# Binary / media assets.
+docs/gallery/
+samples/**/*.mp4
+
+# One-off helper scripts at the repo root are not formatted.
+# Promote them into scripts/ if they should be kept.
+/*.mjs
+
+# ── Temporary ownership split ──────────────────────────────────
+# backend/, shared/, web/ and samples/ are maintained by a
+# parallel workstream and are not formatted yet. Delete these
+# four lines once that workstream adopts the shared Prettier
+# config, then run `npm run format` to catch it up.
+backend/
+shared/
+web/
+samples/

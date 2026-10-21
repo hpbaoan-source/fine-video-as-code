@@ -4,91 +4,39 @@
   <meta charset="UTF-8" />
   <title>Tutorial — fine-video-as-code</title>
   <style>
-    :root {
-      --brand: #3B82F6;
-      --accent: #F59E0B;
-      --text: #F3F4F6;
-      --dim: #9CA3AF;
-      --bg: #0f1115;
-      --card: #1a1d23;
-      --term-bg: #08090b;
-      --term-prompt: #6ee7b7;
+    /* Template skin. Layout, timing and motion live in _engine.js. */
+    .tu-card {
+      background: var(--fv-surface); border: 1px solid var(--fv-border);
+      border-radius: var(--fv-radius-lg); padding: var(--fv-space-6);
+      display: flex; flex-direction: column; gap: var(--fv-space-5);
+      backdrop-filter: blur(2px);
     }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 1920px; height: 1080px; background: var(--bg); color: var(--text); overflow: hidden; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
-    body { position: relative; }
-    .stage { position: absolute; inset: 0; }
-    .topic { position: absolute; top: 40px; left: 60px; font-size: 24px; color: var(--dim); letter-spacing: 2px; font-weight: 500; opacity: 0; transition: opacity 0.5s; z-index: 10; }
-    .topic.show { opacity: 1; }
-    .topic .badge { color: var(--accent); font-weight: 700; margin-right: 12px; }
-    .progress-track { position: absolute; bottom: 124px; left: 50%; transform: translateX(-50%); width: 1600px; height: 6px; background: #374151; border-radius: 3px; opacity: 0; transition: opacity 0.5s; z-index: 6; }
-    .progress-track.show { opacity: 1; }
-    .progress-fill { height: 100%; background: linear-gradient(90deg, var(--brand), var(--accent)); width: 0; border-radius: 3px; transition: width 0.6s ease-out; }
-    .scene { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; opacity: 0; }
-    .scene.active { opacity: 1; }
-    /* Card fills the safe area between the top topic row and the
-       bottom subtitle bar. Fixed height used to make long scenes
-       overflow the card, so the box now spans a fixed band of the
-       frame and its content is centred inside it. */
-    .card { position: absolute; top: 96px; bottom: 150px; left: 0; right: 0; width: auto; height: auto; max-width: 1660px; margin: 0 auto; background: var(--card); border: 2px solid var(--brand); border-radius: 20px; padding: 36px 70px; display: flex; flex-direction: column; justify-content: center; align-items: stretch; gap: 0; transform: translateX(1700px); transition: transform 0.7s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.5s; opacity: 0; }
-    .step-row { display: flex; align-items: center; gap: 32px; margin-bottom: 26px; flex-shrink: 0; }
-    .chip { width: 96px; height: 96px; background: var(--brand); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 44px; font-weight: 800; color: #fff; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.3s; flex-shrink: 0; }
-    .step-icon { color: var(--brand); opacity: 0.85; transform: scale(0); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) 0.4s; }
-    .step-divider { flex: 1; height: 2px; background: linear-gradient(90deg, var(--brand), transparent); opacity: 0.4; }
-    .heading { font-size: 52px; font-weight: 700; line-height: 1.12; max-width: 1400px; margin-bottom: 18px; opacity: 0; transition: opacity 0.5s ease-out 0.5s; flex-shrink: 0; }
-    .on-screen { font-size: 40px; color: var(--brand); font-weight: 600; margin-bottom: 14px; opacity: 0; transition: opacity 0.5s ease-out 0.6s; flex-shrink: 0; }
-    .terminal { background: var(--term-bg); border: 1px solid #1f2937; border-radius: 12px; padding: 20px 28px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 25px; color: var(--text); white-space: pre; max-width: 1400px; line-height: 1.5; margin-top: 22px; opacity: 0; transition: opacity 0.5s ease-out 0.8s; flex-shrink: 0; }
-
-    /* ── Enrichment blocks ──────────────────────────────────────
-       The shared engine styles every enrichment block as
-       position:absolute with a fixed bottom offset, which made
-       bullets / metrics / snippet / diagram stack on top of each
-       other inside the card. In the tutorial template they flow
-       in normal document order instead, so a scene can carry
-       several of them without any overlap. */
-    .card .fv-bullets,
-    .card .fv-metrics,
-    .card .fv-snippet,
-    .card .fv-diagram {
-      position: static;
-      transform: none;
-      left: auto; right: auto; bottom: auto;
-      margin-top: 20px;
-      max-width: 1400px;
-      width: auto;
+    .tu-step {
+      display: flex; gap: 18px; align-items: flex-start;
+      font-size: var(--fv-text-lg); line-height: 1.4;
     }
-    .card .fv-bullets { max-height: none; overflow: visible; gap: 10px; }
-    .card .fv-badge { align-self: flex-start; width: fit-content; }
-    .card .fv-bullet { font-size: 26px; padding: 10px 18px; }
-    .card .fv-metrics { width: 100%; }
-    .card .fv-metric-value { font-size: 46px; }
-    .card .fv-metric-label { font-size: 14px; }
-    .card .fv-snippet-body { font-size: 20px; max-height: none; overflow: visible; }
-    .card .fv-diag-pill { font-size: 22px; }
-    .card .fv-diag-step { font-size: 23px; }
-    /* Subtitle bar belongs to the frame, not to the card — the card
-       has a transform, which would otherwise anchor it inside. */
-    .scene > .fv-subbar { position: absolute; bottom: 0; left: 0; right: 0; }
-    .terminal .prompt { color: var(--term-prompt); }
-    .terminal .output { color: var(--dim); }
-    .terminal .hl { color: var(--accent); }
-    .scene.active .card { transform: translateX(0); opacity: 1; }
-    .scene.active .chip { transform: scale(1); }
-    .scene.active .step-icon { transform: scale(1); }
-    .scene.active .heading, .scene.active .on-screen, .scene.active .terminal { opacity: 1; }
-    .scene.exiting .card { transform: translateX(-1700px); opacity: 0; }
-    .scene.exiting .heading, .scene.exiting .on-screen, .scene.exiting .terminal { opacity: 0; }
-    .scene-num-row { position: absolute; top: 36px; right: 60px; display: flex; align-items: baseline; gap: 6px; z-index: 5; opacity: 0; transition: opacity 0.5s; }
-    .scene-num-row.show { opacity: 1; }
-    .scene-num-row .cur { color: var(--brand); font-size: 64px; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
-    .scene-num-row .total { color: var(--dim); font-size: 28px; font-family: 'JetBrains Mono', monospace; }
+    .tu-step-num {
+      flex: none; width: 38px; height: 38px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--fv-font-mono); font-size: var(--fv-text-sm); font-weight: 700;
+      color: var(--fv-bg); background: var(--fv-brand);
+    }
+    .tu-terminal {
+      font-family: var(--fv-font-mono); font-size: var(--fv-text-sm); line-height: 1.65;
+      background: #0d1117; border: 1px solid var(--fv-border); border-radius: var(--fv-radius-md);
+      padding: 18px 22px; white-space: pre; overflow: hidden; color: var(--fv-text-muted);
+    }
+    .tu-terminal .prompt { color: var(--fv-code-cmd); }
+    .tu-terminal .hl { color: var(--fv-text); }
+    .tu-terminal .output { color: var(--fv-text-faint); }
+    .tu-label {
+      font-size: var(--fv-text-xs); letter-spacing: 0.2em; text-transform: uppercase;
+      color: var(--fv-text-faint);
+    }
   </style>
 </head>
 <body>
-  <div class="topic" id="topic"><span class="badge">TUTORIAL</span><span id="topicText"></span></div>
-  <div class="scene-num-row" id="sceneNumRow"><span class="cur" id="curStep">01</span><span class="total">/ <span id="totalSteps">07</span></span></div>
-  <div class="progress-track" id="progressTrack"><div class="progress-fill" id="progressFill"></div></div>
-  <div class="stage" id="stage"></div>
+  <div class="fv-stage" id="stage"></div>
   <script src="_engine.js"></script>
   <script src="illustrations/icons.js"></script>
   <script>
@@ -99,93 +47,34 @@
     const isRender = params.get('render') === '1';
     const isDeterministic = params.get('deterministic') === '1';
     const data = await (await fetch(params.get('data') || 'data.json')).json();
+    document.documentElement.lang = data.language === 'en' ? 'en' : 'vi';
     E.applyBrand(data.brand || {});
-    document.getElementById('topicText').textContent = data.topic;
-    document.getElementById('totalSteps').textContent = String(data.scenes.length).padStart(2, '0');
     if (isDeterministic) E.freezeTransitions();
-    const progressFill = document.getElementById('progressFill');
+
     const stage = document.getElementById('stage');
-    const sceneEls = E.buildStage(stage, data.scenes, (s, i) => {
-      const iconCue = (s.visual_cues || []).find((c) => c.type === 'icon');
-      const iconName = (iconCue && iconCue.name) || s.icon || 'terminal';
-      const codeCue = (s.visual_cues || []).find((c) => c.type === 'code' || c.type === 'terminal');
-      const iconHolder = document.createElement('div');
-      iconHolder.appendChild(E.renderIcon(iconName, { size: 64, color: 'var(--brand)' }));
-      const iconSvg = iconHolder.innerHTML;
-      // Format code: split lines, mark prompt vs output
-      let terminalHtml = '';
-      if (codeCue && codeCue.content) {
-        const lines = codeCue.content.split('\n');
-        terminalHtml = `<div class="terminal">${lines.map((line) => {
-          if (line.startsWith('$ ') || line.startsWith('git ') || line.startsWith('npm ') || line.startsWith('node ')) {
-            return `<span class="prompt">$ </span><span class="hl">${E.escapeHtml(line.replace(/^\$ /, ''))}</span>\n`;
-          }
-          return `<span class="output">${E.escapeHtml(line)}</span>\n`;
-        }).join('').replace(/\n$/, '')}</div>`;
-      }
-      return `
-        ${E.renderSubtitleBar(s.voiceover, s.duration_ms)}
-        <div class="card">
-          <div class="step-row">
-            <div class="chip">${i + 1}</div>
-            <div class="step-icon">${iconSvg}</div>
-            <div class="step-divider"></div>
-          </div>
-          ${E.renderBadge(s.badge)}
-          ${s.on_screen_text ? `<div class="on-screen">${E.escapeHtml(s.on_screen_text)}</div>` : ''}
-          <div class="heading">${E.escapeHtml(s.heading || '')}</div>
-          ${E.renderSubheading(s.subheading)}
-          ${E.renderBullets(s.bullets)}
-          ${E.renderMetrics(s.metrics)}
-          ${E.renderCodeSnippet(s.codeSnippet)}
-          ${terminalHtml}
-          ${E.renderDiagram(s.diagram)}
-        </div>
-      `;
+    const sceneEls = E.buildStage(stage, data.scenes, (s, i, total) =>
+      E.renderScene(s, i, total, { meta: data, template: 'tutorial' })
+    );
+
+    E.applyDecoration(document.body, {
+      particles: { count: 16, colors: ['var(--fv-brand)', 'var(--fv-accent)'] },
     });
-    E.applyDecoration(document.body, { particles: { count: 16, colors: ['var(--brand)', 'var(--accent)'] } });
 
     const timeline = E.buildTimeline(data.scenes);
     const seek = E.makeSeeker(sceneEls, timeline, data.scenes);
     window.__seek = seek;
     window.__duration = () => timeline.totalMs;
+
     if (isRender && !isDeterministic) {
-      const t0Start = performance.now();
-      const origSeek = seek;
-      const curStepEl = document.getElementById('curStep');
-      const seekWithProgress = (tMs) => {
-        const r = origSeek(tMs);
-        if (r.activeIdx === 0) {
-          document.getElementById('topic').classList.add('show');
-          document.getElementById('progressTrack').classList.add('show');
-          document.getElementById('sceneNumRow').classList.add('show');
-        }
-        curStepEl.textContent = String(r.activeIdx + 1).padStart(2, '0');
-        progressFill.style.width = ((r.activeIdx + 1) / data.scenes.length * 100) + '%';
-        if (tMs >= r.totalMs - 600) {
-          document.getElementById('topic').classList.remove('show');
-          document.getElementById('progressTrack').classList.remove('show');
-          document.getElementById('sceneNumRow').classList.remove('show');
-        }
-        return r;
-      };
-      window.__seek = seekWithProgress;
-      E.runRealtime(seekWithProgress, timeline.totalMs, () => {
-        window.__t0_offset_ms = performance.now() - t0Start;
-        window.__renderDone = true;
-      });
-    } else if (!isRender) {
-      const t0Start = performance.now();
-      const curStepEl = document.getElementById('curStep');
-      function tick() {
-        const t = performance.now() - t0Start;
+      E.runRealtime(seek, timeline.totalMs, () => { window.__renderDone = true; });
+    } else if (!isRender && !isDeterministic) {
+      const t0 = performance.now();
+      (function tick() {
+        const t = performance.now() - t0;
         if (t >= timeline.totalMs) return;
-        const r = seek(t);
-        curStepEl.textContent = String(r.activeIdx + 1).padStart(2, '0');
-        progressFill.style.width = ((r.activeIdx + 1) / data.scenes.length * 100) + '%';
+        seek(t);
         requestAnimationFrame(tick);
-      }
-      requestAnimationFrame(tick);
+      })();
     }
   }
   main();

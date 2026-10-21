@@ -54,11 +54,14 @@ await fs.writeFile(path.join(outDir, "data.json"), JSON.stringify(sceneData, nul
 const server = http.createServer(async (req, res) => {
   const url = req.url.split("?")[0];
   const rel = url === "/" ? "/index.html" : url;
-  const root = rel.startsWith("/_data/") ? outDir : TEMPLATE_DIR;
-  const file = rel.startsWith("/_data/") ? path.join(outDir, rel.slice("/_data/".length)) : path.join(TEMPLATE_DIR, rel);
+  const file = rel.startsWith("/_data/")
+    ? path.join(outDir, rel.slice("/_data/".length))
+    : path.join(TEMPLATE_DIR, rel);
   try {
     const buf = await fs.readFile(file);
-    res.writeHead(200, { "Content-Type": rel.endsWith(".json") ? "application/json" : "text/html" });
+    res.writeHead(200, {
+      "Content-Type": rel.endsWith(".json") ? "application/json" : "text/html",
+    });
     res.end(buf);
   } catch {
     res.writeHead(404);

@@ -13,8 +13,8 @@ Each step is independent and can be tested in isolation by passing mock input.
 
 ## Why the numbers skip from 2 to 4
 
-The old pipeline had a Step 3 (asset generation, Satori → PNG) from the
-Remotion era. It became a no-op when we migrated to Playwright — the
-HTML templates embed their own visuals — and the file was deleted.
-Step numbers in event names and SSE `step` fields are kept stable so
-existing clients keep working.
+Step 3 used to be a separate asset-generation pass (raster images written
+to disk). The renderer now draws every visual inside the HTML template, so
+that pass is no longer needed and the file was removed. Step numbers in
+event names and SSE `step` fields are kept stable so existing clients keep
+working.

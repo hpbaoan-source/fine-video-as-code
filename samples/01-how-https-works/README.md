@@ -46,4 +46,4 @@ curl -X POST http://localhost:3000/api/generate \
   }'
 ```
 
-Render time on Ryzen 5 7520U: ~2 minutes (Playwright Chromium is faster than Remotion's bundler for this use case).
+Render time on Ryzen 5 7520U: ~2 minutes (Playwright drives Chromium directly — there is no bundler between the template and the render).

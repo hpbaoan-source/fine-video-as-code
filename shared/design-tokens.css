@@ -1,0 +1,122 @@
+/* ──────────────────────────────────────────────────────────────
+ * fine-video-as-code — shared design tokens
+ * ──────────────────────────────────────────────────────────────
+ * Single source of truth for colour, spacing, radius, typography
+ * and motion. Consumed by BOTH the video templates (rendered by
+ * Playwright) and the web portal (Fastify static), so a token
+ * change lands everywhere at once.
+ *
+ * Brand-neutral by design: no vendor palette, no third-party
+ * identity. `--fv-brand` / `--fv-accent` are overridable per
+ * render (the portal exposes two colour pickers).
+ * ────────────────────────────────────────────────────────────── */
+
+:root {
+  /* ── Colour: surfaces ───────────────────────────────────── */
+  --fv-bg: #0a0c10;
+  --fv-bg-elevated: #11141b;
+  --fv-surface: rgba(255, 255, 255, 0.04);
+  --fv-surface-strong: rgba(255, 255, 255, 0.07);
+  --fv-border: rgba(255, 255, 255, 0.10);
+  --fv-border-strong: rgba(255, 255, 255, 0.18);
+
+  /* ── Colour: content ────────────────────────────────────── */
+  --fv-text: #ffffff;
+  --fv-text-muted: rgba(255, 255, 255, 0.70);
+  --fv-text-faint: rgba(255, 255, 255, 0.48);
+
+  /* ── Colour: brand (overridable per render) ─────────────── */
+  --fv-brand: #3b82f6;
+  --fv-accent: #f59e0b;
+  --fv-brand-soft: rgba(59, 130, 246, 0.16);
+  --fv-accent-soft: rgba(245, 158, 11, 0.14);
+
+  /* ── Colour: status ─────────────────────────────────────── */
+  --fv-ok: #4ade80;
+  --fv-warn: #fbbf24;
+  --fv-danger: #f87171;
+  --fv-code-cmd: #82aaff;
+  --fv-code-comment: #8b93a7;
+  --fv-code-ok: #4ade80;
+  --fv-code-warn: #fbbf24;
+
+  /* ── Spacing: 4px base scale ────────────────────────────── */
+  --fv-space-1: 4px;
+  --fv-space-2: 8px;
+  --fv-space-3: 12px;
+  --fv-space-4: 16px;
+  --fv-space-5: 24px;
+  --fv-space-6: 32px;
+  --fv-space-7: 48px;
+  --fv-space-8: 64px;
+
+  /* ── Safe area (video frame) ────────────────────────────── */
+  --fv-safe-x: 64px;
+  --fv-safe-y: 48px;
+
+  /* ── Radius ─────────────────────────────────────────────── */
+  --fv-radius-sm: 6px;
+  --fv-radius-md: 10px;
+  --fv-radius-lg: 14px;
+  --fv-radius-pill: 999px;
+
+  /* ── Elevation ──────────────────────────────────────────── */
+  --fv-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30);
+  --fv-shadow-2: 0 4px 20px rgba(0, 0, 0, 0.35);
+  --fv-shadow-brand: 0 0 28px rgba(59, 130, 246, 0.35);
+
+  /* ── Typography ─────────────────────────────────────────── */
+  --fv-font-sans: "Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+  --fv-font-mono: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", Consolas, monospace;
+
+  --fv-text-2xs: 12px;
+  --fv-text-xs: 14px;
+  --fv-text-sm: 16px;
+  --fv-text-md: 20px;
+  --fv-text-lg: 26px;
+  --fv-text-xl: 34px;
+  --fv-text-2xl: 44px;
+  --fv-text-3xl: 60px;
+  --fv-text-4xl: 80px;
+  --fv-text-5xl: 96px;
+
+  --fv-leading-tight: 1.05;
+  --fv-leading-snug: 1.25;
+  --fv-leading-normal: 1.45;
+  --fv-tracking-label: 0.18em;
+
+  /* ── Motion ──────────────────────────────────────────────── */
+  --fv-dur-fast: 180ms;
+  --fv-dur-base: 320ms;
+  --fv-dur-slow: 480ms;
+  --fv-ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --fv-ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* ── Layout ──────────────────────────────────────────────── */
+  --fv-columns: 12;
+  --fv-split-primary: 7fr;
+  --fv-split-secondary: 5fr;
+  --fv-content-max: 1560px;
+  --fv-subbar-min: 132px;
+}
+
+/* ──────────────────────────────────────────────────────────────
+ * Light theme scope — used by the web portal.
+ * The video templates stay dark: a dark frame keeps the subject
+ * readable and keeps text/background contrast predictable.
+ * ────────────────────────────────────────────────────────────── */
+.fv-theme-light {
+  --fv-bg: #f7f8fa;
+  --fv-bg-elevated: #ffffff;
+  --fv-surface: rgba(15, 23, 42, 0.03);
+  --fv-surface-strong: rgba(15, 23, 42, 0.06);
+  --fv-border: rgba(15, 23, 42, 0.12);
+  --fv-border-strong: rgba(15, 23, 42, 0.22);
+  --fv-text: #101828;
+  --fv-text-muted: rgba(16, 24, 40, 0.72);
+  --fv-text-faint: rgba(16, 24, 40, 0.52);
+  --fv-brand-soft: rgba(59, 130, 246, 0.12);
+  --fv-accent-soft: rgba(245, 158, 11, 0.14);
+  --fv-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --fv-shadow-2: 0 6px 24px rgba(16, 24, 40, 0.10);
+}

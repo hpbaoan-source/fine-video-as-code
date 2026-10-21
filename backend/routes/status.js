@@ -4,6 +4,9 @@
 
 import { jobStore } from "../lib/job-store.js";
 
+// States after which no further events will arrive.
+const TERMINAL_STATES = new Set(["completed", "failed", "expired"]);
+
 export default async function statusRoutes(fastify) {
   // SSE stream
   fastify.get("/status/:jobId", (req, reply) => {
@@ -24,7 +27,7 @@ export default async function statusRoutes(fastify) {
       writeEvent(reply, e);
     }
     // If already done, close after replay
-    if (job.status === "completed" || job.status === "failed" || job.status === "expired") {
+    if (TERMINAL_STATES.has(job.status)) {
       writeEvent(reply, { type: "close" });
       reply.raw.end();
       return;
@@ -33,7 +36,7 @@ export default async function statusRoutes(fastify) {
     // Subscribe to future events
     const unsubscribe = jobStore.subscribe(jobId, (event) => {
       writeEvent(reply, event);
-      if (event.type === "complete" || event.type === "error" || event.type === "expired") {
+      if (TERMINAL_STATES.has(event.type) || event.type === "complete" || event.type === "error") {
         writeEvent(reply, { type: "close" });
         setTimeout(() => reply.raw.end(), 50);
       }
@@ -43,9 +46,12 @@ export default async function statusRoutes(fastify) {
     const heartbeat = setInterval(() => {
       try { reply.raw.write(":heartbeat\n\n"); } catch (e) {}
     }, 15000);
+    heartbeat.unref?.();
 
-    // Cleanup on client disconnect
-    req.raw.on("close", () => {
+    // Cleanup on client disconnect. `reply.raw` is the reliable
+    // signal — the request stream can close early on some
+    // Node/undici combinations and would unsubscribe a live client.
+    reply.raw.on("close", () => {
       clearInterval(heartbeat);
       unsubscribe();
     });
@@ -66,6 +72,7 @@ export default async function statusRoutes(fastify) {
         ? {
             filename: job.outputFilename,
             size: job.outputSize,
+            duration_ms: job.outputDurationMs ?? null,
             downloadUrl: `/api/download/${job.id}`,
           }
         : null,
@@ -77,9 +84,21 @@ export default async function statusRoutes(fastify) {
   });
 }
 
+/**
+ * Translate an internal event into the payload the browser sees.
+ * A failed job is reported as an "error" event (the event type the
+ * web UI knows) — the raw "failed" type is kept in the snapshot.
+ */
+function clientEvent(event) {
+  if (event?.type === "failed") {
+    return { ...event, type: "error", message: event.message || "Job failed" };
+  }
+  return event;
+}
+
 function writeEvent(reply, event) {
   try {
-    const data = JSON.stringify(event);
+    const data = JSON.stringify(clientEvent(event));
     reply.raw.write(`data: ${data}\n\n`);
   } catch (e) {}
 }

@@ -1,0 +1,70 @@
+# ─────────────────────────────────────────────────────────────
+# fine-video-as-code — CI
+# ─────────────────────────────────────────────────────────────
+# Runs on every push and pull request:
+#   1. npm ci               (lockfile install, no postinstall hook)
+#   2. playwright install   (Chromium for the render tests)
+#   3. edge-tts             (Python CLI used by the TTS step)
+#   4. npm run lint         (ESLint flat config)
+#   5. npm run format:check (Prettier)
+#   6. npm test             (node --test "backend/tests/**/*.test.js")
+# ─────────────────────────────────────────────────────────────
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test (Node 22)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        # The renderer drives a real Chromium, and the determinism
+        # test renders two frames of video with it.
+        run: npx playwright install --with-deps chromium
+
+      - name: Install Edge-TTS (Python CLI)
+        # The unit suite does NOT need edge-tts: the render test
+        # drives Chromium directly and the audio-sync test probes the
+        # committed sample MP4s. It is installed anyway because the
+        # full pipeline needs it, and so a future TTS-dependent test
+        # does not break CI.
+        run: |
+          pipx install edge-tts || python3 -m pip install --user edge-tts
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          python3 -m pip show edge-tts
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Test
+        run: npm test

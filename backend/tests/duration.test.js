@@ -58,7 +58,7 @@ test("step1Script: VI text gets CHARS_PER_MINUTE_VI estimate (~950 chars/min)", 
   }
 });
 
-test("step1Script: presetScript override preserves all scenes", async () => {
+test("step1Script: presetScript override preserves all scenes", async (t) => {
   // We use a real sample if available, otherwise skip.
   const fs = await import("node:fs/promises");
   const path = await import("node:path");
@@ -71,7 +71,8 @@ test("step1Script: presetScript override preserves all scenes", async () => {
   try {
     sample = JSON.parse(await fs.readFile(samplePath, "utf8"));
   } catch {
-    // sample not in tree — skip
+    // sample not in tree — report it as skipped, not as a pass
+    t.skip("sample script.json not found");
     return;
   }
   const script = await step1Script(

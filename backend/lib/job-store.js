@@ -15,11 +15,15 @@ import { EventEmitter } from "node:events";
 import { nanoid } from "nanoid";
 import { cleanupWorkDir } from "./cleanup.js";
 
-class JobStore {
+export class JobStore {
   constructor() {
     this.jobs = new Map();          // jobId -> job object
     this.emitters = new Map();      // jobId -> EventEmitter
     this.TTL_MS = 30 * 60 * 1000;  // 30 min after completion
+    // Jobs that never reach a terminal state (crashed worker,
+    // killed process) would otherwise live forever. Give them a
+    // hard max age and reclaim their work directory.
+    this.MAX_AGE_MS = 2 * 60 * 60 * 1000; // 2 h from creation
   }
 
   // ── Create ───────────────────────────────────────────────
@@ -55,7 +59,36 @@ class JobStore {
     Object.assign(job, patch);
     if (status === "running" && !job.startedAt) job.startedAt = Date.now();
     if (status === "completed" || status === "failed") job.completedAt = Date.now();
-    this.emit(id, { type: status === "completed" ? "complete" : status });
+    this.emit(id, this.terminalEvent(id, job, status));
+  }
+
+  /**
+   * Build the terminal SSE payload.
+   *
+   * The `complete` event carries the result metadata the web UI
+   * (web/js/app.js) and the API docs (docs/api.md) expect:
+   *   { type, filename, size, duration_ms, downloadUrl, warnings }
+   * A `failed` event carries the error message so a client that
+   * connects *after* the failure still learns why it failed.
+   */
+  terminalEvent(id, job, status) {
+    if (status === "completed") {
+      return {
+        type: "complete",
+        filename: job.outputFilename ?? null,
+        size: job.outputSize ?? null,
+        duration_ms: job.outputDurationMs ?? null,
+        downloadUrl: `/api/download/${id}`,
+        warnings: Array.isArray(job.warnings) ? job.warnings : [],
+      };
+    }
+    if (status === "failed") {
+      return {
+        type: "failed",
+        message: job.error ?? "Job failed",
+      };
+    }
+    return { type: status };
   }
 
   // ── Event stream ─────────────────────────────────────────
@@ -74,23 +107,46 @@ class JobStore {
     return () => emitter.off("event", cb);
   }
 
+  /**
+   * Drop a job completely (used when the queue refuses the job —
+   * otherwise the record would stay in the map as "queued" forever).
+   */
+  remove(id) {
+    if (!this.jobs.has(id)) return false;
+    this.emitters.get(id)?.removeAllListeners();
+    this.emitters.delete(id);
+    this.jobs.delete(id);
+    cleanupWorkDir(id).catch(() => {});
+    return true;
+  }
+
   // ── Cleanup ──────────────────────────────────────────────
   gc() {
     const now = Date.now();
+    const cleanups = [];
     for (const [id, job] of this.jobs) {
-      if (job.completedAt && now - job.completedAt > this.TTL_MS) {
-        job.status = "expired";
-        this.emitters.get(id)?.removeAllListeners();
-        this.emitters.delete(id);
-        // Best-effort: remove the on-disk workDir so tmp/jobs
-        // doesn't fill the disk. The job entry stays in memory
-        // for a bit so the download endpoint can return 410.
-        cleanupWorkDir(id).catch(() => {});
-        setTimeout(() => {
-          this.jobs.delete(id);
-        }, 5 * 60 * 1000);
-      }
+      const terminal = job.completedAt && now - job.completedAt > this.TTL_MS;
+      // Non-terminal jobs (queued/running) expire on a hard max
+      // age so the map and tmp/jobs cannot grow without bound.
+      const stale = !job.completedAt && now - job.createdAt > this.MAX_AGE_MS;
+      if (!terminal && !stale) continue;
+
+      job.status = "expired";
+      this.emitters.get(id)?.removeAllListeners();
+      this.emitters.delete(id);
+      // Best-effort: remove the on-disk workDir so tmp/jobs
+      // doesn't fill the disk. The job entry stays in memory
+      // for a bit so the download endpoint can return 410.
+      cleanups.push(cleanupWorkDir(id).catch(() => {}));
+      const timer = setTimeout(() => {
+        this.jobs.delete(id);
+      }, 5 * 60 * 1000);
+      // Never keep the process alive just to expire a job.
+      timer.unref?.();
     }
+    // Resolves once the work directories are gone (the GC timer
+    // ignores the result, tests await it).
+    return Promise.all(cleanups);
   }
 
   stats() {
@@ -105,4 +161,7 @@ class JobStore {
 }
 
 export const jobStore = new JobStore();
-setInterval(() => jobStore.gc(), 60 * 1000);
+// The GC timer must never hold the process open — CLI tools
+// (scripts/render-sample.js) would hang after a successful render.
+const gcTimer = setInterval(() => jobStore.gc(), 60 * 1000);
+gcTimer.unref?.();

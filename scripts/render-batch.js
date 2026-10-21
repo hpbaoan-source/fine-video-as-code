@@ -11,10 +11,14 @@ const projectRoot = path.join(__dirname, "..");
 for (const name of process.argv.slice(2)) {
   console.log(`\n=== ${name} ===`);
   await new Promise((resolve) => {
-    const p = spawn(process.execPath, ["--env-file=.env", "scripts/render-sample.js", name], {
-      cwd: projectRoot,
-      stdio: "inherit",
-    });
+    const p = spawn(
+      process.execPath,
+      ["--env-file-if-exists=.env", "scripts/render-sample.js", name],
+      {
+        cwd: projectRoot,
+        stdio: "inherit",
+      }
+    );
     p.on("exit", (code) => {
       console.log(`=== ${name} exit ${code} ===`);
       resolve();

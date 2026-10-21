@@ -23,7 +23,7 @@ I maintain https://github.com/hpbaoan-source/fine-video-as-code and recently per
 
 **What I did already:**
 
-- Used `git filter-repo --replace-message` with the patterns VNPT, sang kien, FFB900, 0050AA, anhpb, etc. — all replaced with `[redacted]` in the rewritten commit message
+- Used `git filter-repo --replace-message` with a list of internal patterns (organisation name, project name, brand colours, author handle, …) — all replaced with `[redacted]` in the rewritten commit message
 - Force-pushed `main` to `28e54ce` (then later to `8c7d938`) — the rewritten commit no longer appears in any branch's reflog
 - Verified the rewritten message is clean by fetching `https://api.github.com/repos/hpbaoan-source/fine-video-as-code/commits?sha=311bcd0` — content is now `[redacted]` (as expected)
 
@@ -37,7 +37,7 @@ Could you please run a manual garbage collection on the repository to purge thes
 **Branch:** main
 **Current HEAD SHA:** 8c7d938 (and a previous force-push to 28e54ce)
 **Old SHAs that should be purged** (from before the force-push):
-- `d783f87` (initial scaffold — contained "VNPT IT" reference in commit message)
+- `d783f87` (initial scaffold — contained an internal organisation reference in the commit message)
 - `8fc76e5` (M1-M5 — clean but pre-filter-repo)
 - `7fba032` (wip commit before filter-repo run)
 - `434846b` (intermediate SHA during filter-branch attempts)

@@ -1,15 +1,40 @@
-// Upload one or more videos to Moon Dropbox and print short info.
+// ──────────────────────────────────────────────────────────────
+// upload-moon.mjs — upload one or more videos to a file-drop
+// service and print short info.
+//
 // Usage: node scripts/upload-moon.mjs <file1> [file2...] [--pub]
+//
+// Configuration comes from the environment — nothing is hardcoded:
+//   MOON_API_URL    base URL of the service  (required)
+//   MOON_PASSCODE   login passcode            (required)
+// Both are documented in .env.example.
+// ──────────────────────────────────────────────────────────────
 import fs from "node:fs";
 import path from "node:path";
 
-const API = "https://moon.id.vn";
+const API = process.env.MOON_API_URL;
+const PASSCODE = process.env.MOON_PASSCODE;
+
+function requireConfig() {
+  const missing = [];
+  if (!API) missing.push("MOON_API_URL");
+  if (!PASSCODE) missing.push("MOON_PASSCODE");
+  if (missing.length) {
+    console.error(
+      `✗ Missing environment variable(s): ${missing.join(", ")}\n` +
+        `  Set them in your shell or in a local .env file, e.g.\n` +
+        `    MOON_API_URL=https://your-upload-host.example\n` +
+        `    MOON_PASSCODE=<your passcode>`
+    );
+    process.exit(2);
+  }
+}
 
 async function login() {
   const res = await fetch(`${API}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ passcode: "0000" }),
+    body: JSON.stringify({ passcode: PASSCODE }),
   });
   if (!res.ok) throw new Error(`login HTTP ${res.status}`);
   const j = await res.json();
@@ -36,6 +61,7 @@ async function upload(token, filepath) {
     console.error("usage: node scripts/upload-moon.mjs <file1> [file2...]");
     process.exit(2);
   }
+  requireConfig();
   const token = await login();
   for (const f of files) {
     const absPath = path.resolve(f);
@@ -44,7 +70,9 @@ async function upload(token, filepath) {
       continue;
     }
     const r = await upload(token, absPath);
-    console.log(`${path.basename(absPath)} -> id=${r.id} size=${r.size} ttl=${r.remaining_seconds}s`);
+    console.log(
+      `${path.basename(absPath)} -> id=${r.id} size=${r.size} ttl=${r.remaining_seconds}s`
+    );
   }
 })().catch((e) => {
   console.error(e.message);

@@ -1,0 +1,42 @@
+{
+  "id": "engine-smoke",
+  "template": "tech-explainer",
+  "language": "vi",
+  "voice": "vi-VN-HoaiMyNeural",
+  "meta": {
+    "topic": "Kiểm tra engine",
+    "description": "Video ngắn dùng để kiểm tra toàn bộ pipeline sau khi đổi layout engine."
+  },
+  "scenes": [
+    {
+      "id": "scene-1",
+      "heading": "Engine mới: không còn chồng khung",
+      "voiceover": "Mỗi khối nội dung giờ nằm trong lưới, không còn đè lên nhau.",
+      "duration_ms": 5000,
+      "visual_cue": "khung hình đầu tiên",
+      "visual_cues": [{ "type": "icon", "name": "lock", "size": 200 }],
+      "layout": "title"
+    },
+    {
+      "id": "scene-2",
+      "heading": "Hai cột: chữ bên trái, hình bên phải",
+      "subheading": "Cột phải dành cho biểu tượng, cột trái dành cho câu chữ.",
+      "voiceover": "Nội dung nằm bên trái, biểu tượng nằm bên phải.",
+      "duration_ms": 5000,
+      "visual_cue": "biểu tượng quả địa cầu",
+      "visual_cues": [{ "type": "icon", "name": "globe", "size": 180 }],
+      "bullets": ["Không còn khối nào đè lên khối khác", "Chữ tự thu nhỏ khi quá dài", "Phụ đề đánh sáng theo từng từ"],
+      "metrics": [{ "value": "3", "label": "cột" }, { "value": "0", "label": "lỗi chồng" }],
+      "layout": "split"
+    },
+    {
+      "id": "scene-3",
+      "heading": "Code và sơ đồ đi cùng nhau",
+      "voiceover": "Khối code và sơ đồ hiển thị đầy đủ trong cùng một cảnh.",
+      "duration_ms": 5000,
+      "codeSnippet": "$ npm run render-sample -- 00-engine-smoke\n✓ pipeline ok",
+      "diagram": { "nodes": ["Script", "TTS", "Render"], "steps": ["Sinh kịch bản", "Đọc lời dẫn", "Kết xuất video"] },
+      "layout": "stack"
+    }
+  ]
+}

@@ -1,77 +1,365 @@
 // Shared template engine for fine-video-as-code.
 //
-// Each template imports this and calls `engine.run(data, mount)`.
-// It handles:
-//   - Reading brand color / accent / font from data.brand and
-//     applying them as CSS variables on :root.
-//   - Rendering each scene with its voiceover, heading, on-screen
-//     text, and any visual_cues (icon / image / chart / code).
-//   - Exposing `window.__seek(t_ms)` so the renderer can pause
-//     the animation at any time and screenshot — that's what
-//     makes the output deterministic.
-//   - Setting `window.__renderDone = true` when the seek
-//     reaches the end of the timeline (used by the realtime
-//     fallback render path).
+// One engine, three templates (tech-explainer / promo / tutorial).
+// The engine owns layout, timing and motion; a template only
+// supplies colours and typography. That split is what keeps the
+// three templates from drifting apart.
 //
-// `mount(els, scene, engine)` is a per-template hook that
-// decides how a scene's DOM looks. The engine drives timing;
-// the template decides visuals. Templates can use
-// `engine.renderIcon(name)`, `engine.renderImage(name)`,
-// `engine.renderChart(data)`, and `engine.applyDecoration(el, opts)`
-// to compose rich visuals without writing raw SVG each time.
+// What the engine guarantees:
+//   • Nothing overlaps. Every block lives in a CSS grid; the
+//     subtitle bar reserves its own band at the bottom of the frame.
+//   • Nothing overflows. After mount, each scene is measured and
+//     scaled down (auto-fit) if its content does not fit the frame.
+//   • Motion is a pure function of time. `seek(t)` always produces
+//     the same pixels for the same `t`, so a deterministic render is
+//     reproducible.
+//   • The karaoke caption highlights word by word, timed against
+//     the scene's own duration.
+//
+// The public API (applyBrand, buildStage, buildTimeline, makeSeeker,
+// runRealtime, renderHUD, renderSubtitleBar, renderBullets, …) is kept
+// stable so the templates keep working.
 
 window.fineVideoEngine = (() => {
+  // ── Timing constants ───────────────────────────────────────
+  const INTRO_MS = 500; // fade-in of a scene
+  const OUTRO_MS = 500; // cross-fade window between two scenes
+
+  // ── Font whitelist ─────────────────────────────────────────
+  //
+  // `fontFamily` used to be interpolated straight into
+  // `document.body.style.fontFamily`, which is a CSS injection
+  // hole (`Inter; background-image:url(…)`). Only known families
+  // are accepted; anything else is ignored.
+  const FONT_WHITELIST = new Set([
+    "inter",
+    "georgia",
+    "roboto",
+    "roboto slab",
+    "system-ui",
+    "arial",
+    "helvetica",
+    "verdana",
+    "times new roman",
+    "segoe ui",
+    "jetbrains mono",
+    "fira code",
+    "consolas",
+    "menlo",
+    "monospace",
+    "serif",
+    "sans-serif",
+  ]);
+
+  // ── Small helpers ──────────────────────────────────────────
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+  }
+
+  function clamp(v, lo, hi) {
+    return v < lo ? lo : v > hi ? hi : v;
+  }
+
+  function easeOutQuad(k) {
+    return k * (2 - k);
+  }
+
+  function easeOutCubic(k) {
+    return 1 - Math.pow(1 - k, 3);
+  }
+
+  // ── Design tokens ──────────────────────────────────────────
+  //
+  // Mirrors shared/design-tokens.css (the portal reads that file
+  // directly). Keep both in sync — backend/tests/tokens.test.js
+  // fails the build when they drift.
+  const TOKENS = {
+    "--fv-bg": "#0a0c10",
+    "--fv-bg-elevated": "#11141b",
+    "--fv-surface": "rgba(255, 255, 255, 0.04)",
+    "--fv-surface-strong": "rgba(255, 255, 255, 0.07)",
+    "--fv-border": "rgba(255, 255, 255, 0.10)",
+    "--fv-border-strong": "rgba(255, 255, 255, 0.18)",
+    "--fv-text": "#ffffff",
+    "--fv-text-muted": "rgba(255, 255, 255, 0.70)",
+    "--fv-text-faint": "rgba(255, 255, 255, 0.48)",
+    "--fv-brand": "#3b82f6",
+    "--fv-accent": "#f59e0b",
+    "--fv-brand-soft": "rgba(59, 130, 246, 0.16)",
+    "--fv-accent-soft": "rgba(245, 158, 11, 0.14)",
+    "--fv-ok": "#4ade80",
+    "--fv-warn": "#fbbf24",
+    "--fv-code-cmd": "#82aaff",
+    "--fv-code-comment": "#8b93a7",
+    "--fv-space-3": "12px",
+    "--fv-space-4": "16px",
+    "--fv-space-5": "24px",
+    "--fv-space-6": "32px",
+    "--fv-space-7": "48px",
+    "--fv-safe-x": "64px",
+    "--fv-safe-y": "48px",
+    "--fv-radius-sm": "6px",
+    "--fv-radius-md": "10px",
+    "--fv-radius-lg": "14px",
+    "--fv-radius-pill": "999px",
+    "--fv-font-sans": '"Inter", "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif',
+    "--fv-font-mono": '"JetBrains Mono", "Fira Code", "DejaVu Sans Mono", Consolas, monospace',
+    "--fv-text-xs": "14px",
+    "--fv-text-sm": "16px",
+    "--fv-text-md": "20px",
+    "--fv-text-lg": "26px",
+    "--fv-text-xl": "34px",
+    "--fv-text-2xl": "44px",
+    "--fv-text-3xl": "60px",
+    "--fv-text-4xl": "80px",
+    "--fv-text-5xl": "96px",
+    "--fv-leading-tight": "1.05",
+    "--fv-subbar-min": "132px",
+  };
+
+  function tokenCss() {
+    return Object.entries(TOKENS)
+      .map(([k, v]) => `  ${k}: ${v};`)
+      .join("\n");
+  }
+
+  // ── Layout stylesheet ──────────────────────────────────────
+  //
+  // Every rule here is layout-critical: the grid keeps the content
+  // and the visual side by side, the subbar band is reserved, and
+  // the auto-fit transform has a well defined origin.
+  const LAYOUT_CSS = `
+    :root {
+${tokenCss()}
+      --brand: var(--fv-brand);
+      --accent: var(--fv-accent);
+      --text: var(--fv-text);
+      --dim: var(--fv-text-muted);
+      --bg: var(--fv-bg);
+      --card: var(--fv-bg-elevated);
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 1920px; height: 1080px;
+      background: var(--fv-bg); color: var(--fv-text);
+      overflow: hidden;
+      font-family: var(--fv-font-sans);
+    }
+    body { position: relative; }
+
+    .fv-stage { position: absolute; inset: 0; }
+
+    /* One scene fills the frame. The bottom band is reserved for
+       the subtitle bar so no content can ever slide under it. */
+    .fv-scene {
+      position: absolute; inset: 0;
+      display: flex; flex-direction: column;
+      padding: var(--fv-safe-y) var(--fv-safe-x) calc(var(--fv-subbar-min) + 16px);
+      opacity: 0; visibility: hidden; pointer-events: none;
+    }
+    .fv-scene-grid {
+      flex: 1; min-height: 0;
+      display: grid; gap: var(--fv-space-7);
+      grid-template-columns: 1fr;
+      align-content: center; justify-items: center;
+    }
+    .fv-scene[data-layout="split"] .fv-scene-grid {
+      grid-template-columns: 7fr 5fr; align-items: center;
+    }
+    .fv-scene[data-layout="split"] .fv-col-content { justify-self: start; }
+    .fv-scene[data-layout="split"] .fv-col-visual { justify-self: center; }
+    .fv-scene[data-layout="stack"] .fv-scene-grid {
+      grid-template-rows: auto auto; align-content: center;
+    }
+    .fv-scene[data-layout="title"] .fv-scene-grid { align-content: center; }
+
+    .fv-col { min-width: 0; max-width: 100%; }
+    .fv-col-content {
+      display: flex; flex-direction: column; gap: var(--fv-space-4);
+      max-width: 1020px;
+    }
+    .fv-scene[data-layout="title"] .fv-col-content {
+      align-items: center; text-align: center; margin: 0 auto;
+    }
+
+    .fv-heading {
+      font-size: var(--fv-text-5xl); font-weight: 800;
+      line-height: var(--fv-leading-tight); letter-spacing: -0.02em;
+    }
+    .fv-scene[data-layout="title"] .fv-heading { font-size: var(--fv-text-4xl); }
+    .fv-subheading {
+      font-size: var(--fv-text-lg); color: var(--fv-text-muted);
+      line-height: 1.4; max-width: 46ch;
+    }
+    .fv-scene[data-layout="title"] .fv-subheading { text-align: center; }
+    .fv-cue {
+      align-self: flex-start;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 6px 14px; border-radius: var(--fv-radius-pill);
+      background: var(--fv-brand-soft); border: 1px solid var(--fv-border-strong);
+      color: var(--fv-text-muted); font-size: var(--fv-text-sm);
+      letter-spacing: 0.02em;
+    }
+    .fv-scene[data-layout="title"] .fv-cue { align-self: center; }
+    .fv-on-screen {
+      font-size: var(--fv-text-xl); font-weight: 700; color: var(--fv-brand);
+    }
+    .fv-scene[data-layout="title"] .fv-on-screen { text-align: center; }
+
+    .fv-bullets { list-style: none; display: flex; flex-direction: column; gap: var(--fv-space-3); }
+    .fv-bullet { display: flex; gap: 14px; align-items: flex-start; font-size: var(--fv-text-lg); line-height: 1.35; }
+    .fv-bullet-marker {
+      width: 10px; height: 10px; margin-top: 13px; flex: none;
+      border-radius: 50%; background: var(--fv-brand);
+      box-shadow: 0 0 12px var(--fv-brand-soft);
+    }
+    .fv-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: var(--fv-space-4); }
+    .fv-metric {
+      background: var(--fv-surface); border: 1px solid var(--fv-border);
+      border-radius: var(--fv-radius-md); padding: var(--fv-space-4) var(--fv-space-5);
+    }
+    .fv-metric-value { font-size: var(--fv-text-3xl); font-weight: 800; color: var(--fv-brand); line-height: 1.05; }
+    .fv-metric-label {
+      margin-top: 6px; font-size: var(--fv-text-xs); text-transform: uppercase;
+      letter-spacing: 0.12em; color: var(--fv-text-faint);
+    }
+
+    .fv-snippet {
+      background: #0d1117; border: 1px solid var(--fv-border);
+      border-radius: var(--fv-radius-md); overflow: hidden; max-width: 100%;
+    }
+    .fv-snippet-bar { display: flex; gap: 8px; padding: 10px 14px; background: rgba(255,255,255,0.04); }
+    .fv-snippet-dot { width: 11px; height: 11px; border-radius: 50%; }
+    .fv-dot-r { background: #ff5f57; } .fv-dot-y { background: #febc2e; } .fv-dot-g { background: #28c840; }
+    .fv-snippet-body {
+      font-family: var(--fv-font-mono); font-size: var(--fv-text-sm); line-height: 1.6;
+      padding: 16px 20px; white-space: pre; overflow: hidden; color: var(--fv-text-muted);
+    }
+    .fv-code-cmd { color: var(--fv-code-cmd); }
+    .fv-code-comment { color: var(--fv-code-comment); font-style: italic; }
+    .fv-code-ok { color: var(--fv-code-ok); }
+    .fv-code-warn { color: var(--fv-warn); }
+
+    .fv-diagram { display: flex; flex-direction: column; gap: var(--fv-space-4); max-width: 100%; }
+    .fv-diag-nodes { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+    .fv-diag-pill {
+      padding: 10px 18px; border-radius: var(--fv-radius-pill);
+      background: var(--fv-brand-soft); border: 1px solid var(--fv-border-strong);
+      font-size: var(--fv-text-md); white-space: nowrap;
+    }
+    .fv-diag-arrow { width: 32px; height: 16px; color: var(--fv-text-faint); flex: none; }
+    .fv-diag-steps { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .fv-diag-step { display: flex; gap: 14px; align-items: flex-start; font-size: var(--fv-text-md); line-height: 1.35; }
+    .fv-diag-step-num { font-family: var(--fv-font-mono); color: var(--fv-accent); font-size: var(--fv-text-sm); padding-top: 3px; }
+    .fv-diag-step-text { color: var(--fv-text-muted); }
+
+    .fv-hero { display: flex; align-items: center; justify-content: center; }
+    .fv-hero-icon {
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 50%;
+      background: radial-gradient(circle, var(--fv-brand-soft) 0%, transparent 70%);
+    }
+    .fv-cue-slot { max-width: 100%; }
+
+    .fv-hud {
+      position: absolute; top: var(--fv-safe-y); left: var(--fv-safe-x); right: var(--fv-safe-x);
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: var(--fv-text-xs); letter-spacing: 0.18em; text-transform: uppercase;
+      color: var(--fv-text-faint);
+    }
+    .fv-hud-left { display: flex; align-items: center; gap: 10px; }
+    .fv-hud-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fv-accent); }
+    .fv-hud-step { font-family: var(--fv-font-mono); color: var(--fv-text-muted); }
+
+    .fv-subbar {
+      position: absolute; left: 0; right: 0; bottom: 0;
+      min-height: var(--fv-subbar-min);
+      display: flex; align-items: center; gap: 20px;
+      padding: 20px var(--fv-safe-x) 28px;
+      background: linear-gradient(180deg, rgba(10,12,16,0) 0%, rgba(10,12,16,0.92) 42%);
+    }
+    .fv-eq { display: flex; align-items: flex-end; gap: 4px; height: 26px; flex: none; }
+    .fv-eq-bar { width: 4px; border-radius: 2px; background: var(--fv-brand); }
+    .fv-subbar-text { flex: 1; font-size: var(--fv-text-md); line-height: 1.45; color: var(--fv-text-muted); }
+    .fv-kw { color: var(--fv-text-faint); transition: color 120ms linear; }
+    .fv-kw-done { color: var(--fv-text-muted); }
+    .fv-kw-now { color: var(--fv-brand); font-weight: 700; }
+    .fv-subbar-progress {
+      position: absolute; left: 0; bottom: 0; height: 3px; width: 0;
+      background: linear-gradient(90deg, var(--fv-brand), var(--fv-accent));
+    }
+
+    .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+    .icon { display: inline-flex; align-items: center; justify-content: center; }
+    .chart { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+  `;
+
+  // ── Brand ──────────────────────────────────────────────────
+  //
+  // Brand colour and accent are applied as CSS custom properties
+  // so a template can restyle itself without touching the DOM.
   function applyBrand(brand) {
     if (!brand) return;
     const root = document.documentElement.style;
-    if (brand.brandColor) root.setProperty("--brand", brand.brandColor);
-    if (brand.accentColor) root.setProperty("--accent", brand.accentColor);
+    if (brand.brandColor && /^#[0-9a-f]{3,8}$/i.test(brand.brandColor)) {
+      root.setProperty("--fv-brand", brand.brandColor);
+      root.setProperty("--brand", brand.brandColor);
+    }
+    if (brand.accentColor && /^#[0-9a-f]{3,8}$/i.test(brand.accentColor)) {
+      root.setProperty("--fv-accent", brand.accentColor);
+      root.setProperty("--accent", brand.accentColor);
+    }
     if (brand.fontFamily) {
-      document.body.style.fontFamily = `${brand.fontFamily}, 'Inter', 'Segoe UI', system-ui, sans-serif`;
+      const wanted = String(brand.fontFamily).replace(/['"]/g, "").trim().toLowerCase();
+      if (FONT_WHITELIST.has(wanted)) {
+        document.body.style.fontFamily = `${brand.fontFamily}, var(--fv-font-sans)`;
+      }
     }
   }
 
-  // ── Icon / image / chart cue helpers ───────────────────────
+  // ── Icon / image / chart helpers ───────────────────────────
   //
-  // Look up a Phosphor icon by name. Returns an SVG element.
-  // `window.fineVideoIcons` is loaded from
-  // `illustrations/icons.js` (vendored, MIT) before the engine
-  // is called. If the icon name is not found, returns a
-  // placeholder with the first 2 letters.
+  // Icons come from the vendored Phosphor registry
+  // (illustrations/icons.js, MIT) which the template loads before
+  // the engine runs. Unknown names fall back to a text badge so a
+  // missing icon never breaks a render.
   function renderIcon(name, opts = {}) {
     const size = opts.size || 96;
-    const color = opts.color || "var(--brand)";
+    const color = opts.color || "var(--fv-brand)";
     const wrap = document.createElement("span");
     wrap.className = "icon icon-" + name;
+    wrap.setAttribute("aria-hidden", "true");
     wrap.style.cssText = `display:inline-flex;align-items:center;justify-content:center;color:${color};width:${size}px;height:${size}px;flex-shrink:0;`;
     const svg = (window.fineVideoIcons || {})[name];
     if (svg) {
-      const s = document.createElement("span");
-      s.innerHTML = svg;
-      const el = s.firstElementChild;
+      const holder = document.createElement("span");
+      holder.innerHTML = svg;
+      const el = holder.firstElementChild;
       el.setAttribute("width", String(size));
       el.setAttribute("height", String(size));
       el.style.cssText = `width:${size}px;height:${size}px;fill:currentColor;`;
       wrap.appendChild(el);
     } else {
       wrap.textContent = String(name).slice(0, 2).toUpperCase();
-      wrap.style.fontSize = (size * 0.45) + "px";
+      wrap.style.fontSize = Math.round(size * 0.45) + "px";
       wrap.style.fontWeight = "800";
     }
     return wrap;
   }
 
-  // Look up a custom SVG illustration by name. Same registry
-  // pattern as icons but for the larger scene-filling
-  // illustrations (e.g. "handshake-flow", "encryption-grid").
-  // Falls back to a dimmed placeholder box.
+  // Large scene illustrations. Same registry pattern as the icons
+  // but for full-panel artwork.
   function renderImage(name, opts = {}) {
     const width = opts.width || 600;
     const height = opts.height || 400;
     const svg = (window.fineVideoImages || {})[name];
     const wrap = document.createElement("div");
     wrap.className = "image image-" + name;
-    wrap.style.cssText = `display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;`;
     if (svg) {
       wrap.innerHTML = svg;
       const el = wrap.firstElementChild;
@@ -79,66 +367,52 @@ window.fineVideoEngine = (() => {
       el.setAttribute("height", String(height));
       el.style.cssText = `width:${width}px;height:${height}px;`;
     } else {
-      wrap.style.cssText += `border:2px dashed var(--dim);color:var(--dim);font-family:monospace;font-size:24px;`;
+      wrap.style.cssText = `display:flex;align-items:center;justify-content:center;width:${width}px;height:${height}px;border:2px dashed var(--fv-border-strong);color:var(--fv-text-faint);font-family:var(--fv-font-mono);font-size:24px;`;
       wrap.textContent = `[${name}]`;
     }
     return wrap;
   }
 
-  // Render a horizontal bar chart from {label: value} object.
-  // Returns a DOM element. Values are normalised to the max
-  // value in the dataset so the longest bar fills the width.
+  // Horizontal bar chart from a { label: value } object. Values are
+  // normalised against the largest one.
   function renderChart(data, opts = {}) {
-    const labels = Object.keys(data);
-    if (labels.length === 0) {
-      const empty = document.createElement("div");
-      empty.textContent = "(empty chart)";
-      return empty;
-    }
+    const labels = Object.keys(data || {});
+    if (!labels.length) return document.createElement("div");
     const values = labels.map((k) => Number(data[k]) || 0);
     const max = Math.max(...values, 1);
     const wrap = document.createElement("div");
     wrap.className = "chart";
     wrap.style.cssText = "display:flex;flex-direction:column;gap:14px;width:100%;";
     labels.forEach((label, i) => {
-      const v = values[i];
-      const pct = (v / max) * 100;
+      const pct = (values[i] / max) * 100;
       const row = document.createElement("div");
       row.style.cssText = "display:flex;align-items:center;gap:18px;";
       const lbl = document.createElement("div");
       lbl.textContent = label;
-      lbl.style.cssText = "width:220px;color:var(--dim);font-size:22px;text-align:right;";
-      const barBg = document.createElement("div");
-      barBg.style.cssText = "flex:1;height:24px;background:#1f2937;border-radius:6px;overflow:hidden;";
+      lbl.style.cssText = "width:200px;color:var(--fv-text-muted);font-size:20px;text-align:right;";
+      const bg = document.createElement("div");
+      bg.style.cssText = "flex:1;height:22px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;";
       const bar = document.createElement("div");
-      bar.style.cssText = `width:${pct}%;height:100%;background:linear-gradient(90deg,var(--brand),var(--accent));transition:width 0.4s;`;
-      barBg.appendChild(bar);
+      bar.style.cssText = `width:${pct.toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--fv-brand),var(--fv-accent));`;
+      bg.appendChild(bar);
       const val = document.createElement("div");
-      val.textContent = String(v);
-      val.style.cssText = "width:120px;color:var(--accent);font-size:22px;font-weight:700;";
+      val.textContent = String(values[i]);
+      val.style.cssText = "width:110px;color:var(--fv-accent);font-size:20px;font-weight:700;";
       row.appendChild(lbl);
-      row.appendChild(barBg);
+      row.appendChild(bg);
       row.appendChild(val);
       wrap.appendChild(row);
     });
     return wrap;
   }
 
-  // Apply a decorative layer to an element. Pure DOM/CSS.
-  // opts: { particles: true|{count,colors}, gradient: '...' }
-  //
-  // Particle positions are derived from the index using a tiny
-  // deterministic LCG (linear congruential generator) so two
-  // renders of the same scene produce the same pixel layout.
-  // Math.random() would make the output non-deterministic.
+  // Decorative particles. Positions come from a seeded LCG, never
+  // Math.random(), so two renders of the same scene are identical.
   function applyDecoration(el, opts = {}) {
-    if (opts.gradient) {
-      el.style.background = opts.gradient;
-    }
+    if (opts.gradient) el.style.background = opts.gradient;
     if (opts.particles) {
       const cfg = typeof opts.particles === "object" ? opts.particles : { count: 18 };
-      const colors = cfg.colors || ["var(--brand)", "var(--accent)", "#fff"];
-      // Seeded PRNG (Numerical Recipes constants).
+      const colors = cfg.colors || ["var(--fv-brand)", "var(--fv-accent)", "#fff"];
       let state = 0x12345678;
       const rand = () => {
         state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
@@ -146,17 +420,15 @@ window.fineVideoEngine = (() => {
       };
       const layer = document.createElement("div");
       layer.className = "particles";
-      layer.style.cssText = "position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:0;";
       for (let i = 0; i < cfg.count; i++) {
         const dot = document.createElement("div");
         const size = 2 + rand() * 5;
-        const color = colors[i % colors.length];
         const x = rand() * 100;
         const y = rand() * 100;
         const dur = 6 + rand() * 8;
         const delay = -rand() * dur;
-        const opacity = 0.1 + rand() * 0.4;
-        dot.style.cssText = `position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:50%;background:${color};opacity:${opacity};animation:particle-float ${dur}s ${delay}s linear infinite;`;
+        const opacity = 0.1 + rand() * 0.35;
+        dot.style.cssText = `position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:50%;background:${colors[i % colors.length]};opacity:${opacity};`;
         layer.appendChild(dot);
       }
       el.appendChild(layer);
@@ -164,545 +436,81 @@ window.fineVideoEngine = (() => {
     return el;
   }
 
-  // Default per-template visual cue renderer. Templates can
-  // override by passing a `cueRenderer(visualCue)` to engine.run.
-  function defaultCueRenderer(visualCue) {
-    if (!visualCue || !visualCue.type) return "";
-    const c = escapeHtml(visualCue.content || "");
-    const wrapperStyle = `
-      position: absolute;
-      bottom: 60px;
-      left: 50%;
-      transform: translateX(-50%);
-      max-width: 1500px;
-      background: var(--card, rgba(15,17,21,0.95));
-      border: 2px solid var(--brand);
-      border-radius: 12px;
-      padding: 24px 40px;
-      color: var(--text);
-      font-size: 32px;
-      font-family: 'JetBrains Mono', 'Consolas', monospace;
-      line-height: 1.4;
-    `;
-    if (visualCue.type === "icon") {
-      const name = visualCue.name || c;
-      const size = visualCue.size || 240;
-      const color = visualCue.color || "var(--brand)";
-      const wrap = document.createElement("div");
-      wrap.style.cssText = `position:absolute;top:200px;right:200px;`;
-      wrap.appendChild(renderIcon(name, { size, color }));
-      return wrap.outerHTML;
-    }
-    if (visualCue.type === "image") {
-      const name = visualCue.name || c;
-      const width = visualCue.width || 600;
-      const height = visualCue.height || 400;
-      return renderImage(name, { width, height }).outerHTML;
-    }
-    if (visualCue.type === "chart" || visualCue.type === "graph") {
-      // Two accepted shapes:
-      //   chart: { type: "chart", data: { Plan: 1, Pro: 4, Team: 12 } }
-      //   chart: { type: "chart", content: "Plan:1;Pro:4;Team:12" }
-      let data = visualCue.data;
-      if (!data && c) {
+  // Non-icon visual cues (chart / image / text) rendered into the
+  // visual column of a scene.
+  function renderCueSlot(scene) {
+    const cues = (scene && scene.visual_cues) || [];
+    const cue = cues.find((c) => c && c.type && c.type !== "icon");
+    if (!cue) return "";
+    if (cue.type === "chart" || cue.type === "graph") {
+      let data = cue.data;
+      if (!data && cue.content) {
         data = Object.fromEntries(
-          c.split(/[;\n]/).map((s) => s.trim()).filter(Boolean)
-              .map((line) => line.split(/[:=]/).map((x) => x?.trim()))
-              .filter((p) => p[0] && p[1] !== undefined)
+          String(cue.content)
+            .split(/[;\n]/)
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((line) => line.split(/[:=]/).map((x) => (x || "").trim()))
+            .filter((p) => p[0] && p[1] !== undefined)
         );
       }
-      if (data && typeof data === "object") {
-        const wrap = document.createElement("div");
-        wrap.style.cssText = `${wrapperStyle}max-width:1300px;`;
-        wrap.appendChild(renderChart(data));
-        return wrap.outerHTML;
-      }
-      return `<div style="${wrapperStyle}">${c}</div>`;
+      if (!data || typeof data !== "object") return "";
+      const host = document.createElement("div");
+      host.className = "fv-cue-slot";
+      host.appendChild(renderChart(data));
+      return host.outerHTML;
     }
-    if (visualCue.type === "code") {
-      return `<pre style="${wrapperStyle}white-space:pre-wrap;word-break:break-word;">${c}</pre>`;
+    if (cue.type === "image") {
+      const host = document.createElement("div");
+      host.className = "fv-cue-slot";
+      host.appendChild(renderImage(cue.name || cue.content || "image", { width: 620, height: 420 }));
+      return host.outerHTML;
     }
-    return `<div style="${wrapperStyle}">${c}</div>`;
+    return "";
   }
 
-  function escapeHtml(s) {
-    return String(s).replace(/[&<>"']/g, (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
-    );
-  }
-
-  // Inject the @keyframes and shared enrichment CSS used by every
-  // template. Idempotent (re-call safe). Called once from init().
-  function injectKeyframes() {
-    if (document.getElementById("__fv_keyframes")) return;
-    const style = document.createElement("style");
-    style.id = "__fv_keyframes";
-    style.textContent = `
-      @keyframes particle-float {
-        0%   { transform: translate(0, 0); }
-        25%  { transform: translate(20px, -40px); }
-        50%  { transform: translate(-10px, -80px); }
-        75%  { transform: translate(30px, -40px); }
-        100% { transform: translate(0, 0); }
-      }
-      @keyframes pulse-ring {
-        0%   { transform: scale(0.8); opacity: 0.6; }
-        100% { transform: scale(1.4); opacity: 0; }
-      }
-      @keyframes glow {
-        0%, 100% { filter: drop-shadow(0 0 8px var(--brand)); }
-        50%      { filter: drop-shadow(0 0 24px var(--brand)); }
-      }
-
-      /* ─── Enrichment layer ────────────────────────────────────
-       * Shared across all 3 templates. Templates call the
-       * helpers in _engine.js and the styles below apply.
-       * Element opacity / transform is driven by tickEqualizer
-       * so deterministic renders (CSS transitions killed) still
-       * show motion. */
-
-      /* Top-of-frame HUD */
-      .fv-hud {
-        position: absolute; top: 0; left: 0; right: 0;
-        display: flex; align-items: center; justify-content: space-between;
-        padding: 24px 56px; pointer-events: none; z-index: 5;
-      }
-      .fv-hud-left { display: flex; align-items: center; gap: 10px; }
-      .fv-hud-dot {
-        width: 10px; height: 10px; border-radius: 50%;
-        background: var(--brand);
-        box-shadow: 0 0 12px var(--brand);
-      }
-      .fv-hud-topic {
-        font-size: 14px; font-weight: 700; letter-spacing: 0.18em;
-        text-transform: uppercase; color: rgba(255,255,255,0.85);
-      }
-      .fv-hud-right { display: flex; align-items: center; }
-      .fv-hud-step {
-        font-size: 13px; font-weight: 600; letter-spacing: 0.12em;
-        padding: 6px 14px; border-radius: 999px;
-        background: rgba(255,255,255,0.08);
-        border: 1px solid rgba(255,255,255,0.16);
-        color: rgba(255,255,255,0.78);
-        backdrop-filter: blur(8px);
-      }
-
-      /* Bottom-of-frame subtitle bar */
-      .fv-subbar {
-        position: absolute; bottom: 0; left: 0; right: 0;
-        padding: 18px 56px 28px;
-        background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0));
-        z-index: 5;
-      }
-      .fv-eq {
-        display: flex; align-items: flex-end; gap: 4px;
-        height: 24px; margin-bottom: 10px;
-      }
-      .fv-eq-bar {
-        display: inline-block; width: 4px;
-        background: var(--brand); border-radius: 2px;
-        box-shadow: 0 0 8px var(--brand);
-      }
-      .fv-subbar-text {
-        position: relative; font-size: 22px; line-height: 1.4;
-        font-weight: 500; color: rgba(255,255,255,0.92);
-        max-width: 80%;         /* was 1500px; now % so centre stays clean on any viewport */
-        margin: 0 auto;         /* centre horizontally inside full-width subbar */
-        text-align: center;     /* wrap-drop text inside the centred block */
-      }
-      .fv-subbar-progress {
-        position: absolute; left: 0; bottom: -8px;
-        height: 3px; width: 0%;
-        background: var(--brand);
-        box-shadow: 0 0 8px var(--brand);
-        border-radius: 2px;
-      }
-
-      /* Badge + subheading */
-      .fv-badge {
-        display: inline-block;
-        font-size: 13px; font-weight: 700; letter-spacing: 0.22em;
-        text-transform: uppercase;
-        color: var(--brand);
-        padding: 6px 14px;
-        border: 1px solid var(--brand);
-        border-radius: 999px;
-        margin-bottom: 18px;
-      }
-      .fv-subheading {
-        font-size: 24px; line-height: 1.4;
-        color: rgba(255,255,255,0.7);
-        margin-bottom: 14px;
-        max-width: 1200px;
-      }
-
-      /* Bullets — anchored at the bottom of the scene so the flex
-       column layout above doesn't push them off-canvas. */
-      .fv-bullets {
-        list-style: none; padding: 0; margin: 0;
-        display: flex; flex-direction: column; gap: 8px;
-        max-width: 1300px;
-        position: absolute;
-        bottom: 130px;        /* above the subtitle bar */
-        left: 56px; right: 56px;
-        max-height: 260px;
-        overflow: hidden;
-      }
-      .fv-bullet {
-        display: flex; align-items: center; gap: 12px;
-        padding: 8px 14px;
-        background: rgba(255,255,255,0.05);
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 10px;
-        font-size: 18px; font-weight: 500;
-        color: rgba(255,255,255,0.92);
-        will-change: transform, opacity;
-        flex-shrink: 0;
-      }
-      .fv-bullet-marker {
-        width: 8px; height: 8px; border-radius: 50%;
-        background: var(--brand);
-        flex-shrink: 0;
-        box-shadow: 0 0 8px var(--brand);
-      }
-
-      /* Metrics row — bottom-centred, above the subtitle bar. */
-      .fv-metrics {
-        display: grid;
-        margin: 0;
-        max-width: 1400px;
-        gap: 18px;
-        position: absolute;
-        bottom: 140px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: max-content;
-      }
-      .fv-metrics-count-1 { grid-template-columns: 1fr; max-width: 480px; }
-      .fv-metrics-count-2 { grid-template-columns: 1fr 1fr; max-width: 960px; }
-      .fv-metrics-count-3 { grid-template-columns: repeat(3, 1fr); max-width: 1440px; }
-      .fv-metrics-count-4 { grid-template-columns: repeat(4, 1fr); max-width: 1500px; }
-      .fv-metric {
-        padding: 16px 22px;
-        background: linear-gradient(135deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 14px;
-        will-change: transform, opacity;
-      }
-      .fv-metric-value {
-        font-size: 40px; font-weight: 800; line-height: 1;
-        color: var(--brand);
-        letter-spacing: -0.02em;
-      }
-      .fv-metric-label {
-        margin-top: 6px;
-        font-size: 12px; font-weight: 600; letter-spacing: 0.14em;
-        text-transform: uppercase;
-        color: rgba(255,255,255,0.6);
-      }
-
-      /* Code snippet — anchored at the bottom of the scene, above
-       the subtitle bar. Sized to fit the canvas. */
-      .fv-snippet {
-        margin: 0;
-        background: rgba(0,0,0,0.55);
-        border: 1px solid rgba(255,255,255,0.10);
-        border-radius: 12px;
-        overflow: hidden;
-        max-width: 1100px;
-        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-        position: absolute;
-        bottom: 130px;
-        left: 56px;
-      }
-      .fv-snippet-bar {
-        display: flex; align-items: center; gap: 8px;
-        padding: 10px 14px;
-        background: rgba(255,255,255,0.05);
-        border-bottom: 1px solid rgba(255,255,255,0.08);
-      }
-      .fv-snippet-dot {
-        width: 12px; height: 12px; border-radius: 50%;
-      }
-      .fv-dot-r { background: #ff5f57; }
-      .fv-dot-y { background: #febc2e; }
-      .fv-dot-g { background: #28c840; }
-      .fv-snippet-body {
-        margin: 0; padding: 14px 18px;
-        font-size: 14px; line-height: 1.5;
-        color: rgba(255,255,255,0.92);
-        white-space: pre-wrap; word-break: break-word;
-        max-height: 240px;
-        overflow-y: auto;
-      }
-      .fv-code-cmd    { color: #82aaff; }
-      .fv-code-comment { color: #6b7280; font-style: italic; }
-      .fv-code-ok     { color: #4ade80; }
-      .fv-code-warn   { color: #fbbf24; }
-
-      /* Diagram — anchored at the bottom of the scene. */
-      .fv-diagram {
-        margin: 0; max-width: 1400px;
-        position: absolute;
-        bottom: 140px;
-        left: 56px; right: 56px;
-      }
-      .fv-diag-nodes {
-        display: flex; align-items: center; flex-wrap: wrap;
-        gap: 4px;
-        padding: 14px;
-        background: rgba(255,255,255,0.03);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 14px;
-      }
-      .fv-diag-pill {
-        padding: 8px 18px;
-        background: var(--brand);
-        color: #fff;
-        border-radius: 999px;
-        font-size: 16px; font-weight: 700;
-        will-change: transform, opacity;
-      }
-      .fv-diag-arrow {
-        width: 32px; height: 16px; color: var(--brand); flex-shrink: 0;
-      }
-      .fv-diag-steps {
-        list-style: none; padding: 0; margin: 14px 0 0;
-        display: flex; flex-direction: column; gap: 8px;
-      }
-      .fv-diag-step {
-        display: flex; align-items: center; gap: 14px;
-        padding: 10px 14px;
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        border-radius: 10px;
-        font-size: 17px;
-        will-change: transform, opacity;
-      }
-      .fv-diag-step-num {
-        width: 30px; height: 30px;
-        display: inline-flex; align-items: center; justify-content: center;
-        background: var(--brand); color: #fff;
-        border-radius: 50%;
-        font-size: 13px; font-weight: 800;
-        flex-shrink: 0;
-      }
-      .fv-diag-step-text { color: rgba(255,255,255,0.92); }
-    `;
-    document.head.appendChild(style);
-  }
-
-  // Build the per-scene DOM. `mountScene(scene, index, total)` is a
-  // template-supplied function that returns the inner HTML.
-  function buildStage(stageEl, scenes, mountScene) {
-    stageEl.innerHTML = "";
-    return scenes.map((s, i) => {
-      const el = document.createElement("div");
-      el.className = "scene scene-" + (i + 1);
-      el.dataset.sceneIndex = String(i);
-      el.innerHTML = mountScene(s, i, scenes.length);
-      stageEl.appendChild(el);
-      return el;
-    });
-  }
-
-  // Compute the time at which each scene starts. Scene 0 starts
-  // at 0, scene N starts after scenes 0..N-1 finish.
-  function buildTimeline(scenes) {
-    let cumulative = 0;
-    const intro = 500;
-    const outro = 500;
-    const start = [];
-    for (let i = 0; i < scenes.length; i++) {
-      start.push(cumulative);
-      cumulative += scenes[i].duration_ms;
-    }
-    return { start, totalMs: cumulative, intro, outro };
-  }
-
-  // Apply the visual state for time `tMs`. Public via
-  // window.__seek so the renderer can pause-and-screenshot.
-  function makeSeeker(sceneEls, timeline, scenes) {
-    return function seek(tMs) {
-      let activeIdx = 0;
-      for (let i = 0; i < timeline.start.length; i++) {
-        if (tMs >= timeline.start[i]) activeIdx = i;
-        else break;
-      }
-      for (let i = 0; i < sceneEls.length; i++) {
-        const el = sceneEls[i];
-        el.classList.toggle("active", i === activeIdx);
-        el.classList.toggle(
-          "exiting",
-          i < activeIdx ||
-            (i > activeIdx && i === activeIdx + 1 &&
-              tMs < timeline.start[i] + timeline.intro)
-        );
-        el.classList.toggle(
-          "entering",
-          i === activeIdx + 1 &&
-            tMs < timeline.start[i] + timeline.intro
-        );
-      }
-      // Drive the per-frame animations that depend on time:
-      // equaliser bars + karaoke highlight. Same t_ms → same
-      // heights → bit-for-bit deterministic output.
-      const activeScene = scenes[activeIdx];
-      if (activeScene) {
-        tickEqualizer(
-          tMs,
-          timeline.start[activeIdx],
-          activeScene.duration_ms
-        );
-      }
-      return { activeIdx, tMs, totalMs: timeline.totalMs };
-    };
-  }
-
-  // Realtime fallback: drive the same `seek` from a setInterval.
-  function runRealtime(seek, totalMs, onDone) {
-    const t0 = performance.now();
-    const id = setInterval(() => {
-      const t = performance.now() - t0;
-      seek(t);
-      if (t >= totalMs) {
-        clearInterval(id);
-        onDone?.();
-      }
-    }, 30);
-    return id;
-  }
-
-  // For deterministic render: kill every CSS transition AND
-  // animation. Transitions are killed so a `__seek(t)` snap
-  // takes effect on the very next paint. Animations are killed
-  // because they advance on the wall clock (not on `t`), and
-  // any frame captured between two wall-clock reads would have
-  // a different animation phase on each run. Templates that want
-  // visible motion in deterministic renders should bake the
-  // motion into the static layout (e.g. decorative arrows),
-  // not into @keyframes.
-  function freezeTransitions() {
-    const style = document.createElement("style");
-    style.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
-    document.head.appendChild(style);
-  }
-
-  // One-time init: inject the keyframes and load icon/image
-  // registries (icons.js + images.js) if not already present.
-  function init() {
-    injectKeyframes();
-  }
-
-  // ── Enrichment helpers ────────────────────────────────────
+  // ── Layout decision ────────────────────────────────────────
   //
-  // All return HTML strings (or DOM nodes) that templates can
-  // drop into the scene with stagger via . They are designed to
-  // be silent no-ops when their input is empty / undefined, so
-  // templates can call them unconditionally — `engine.renderBullets(scene.bullets)`
-  // renders nothing when bullets is missing.
-
-  // Top-of-frame HUD: small accent dot + topic title on the left,
-  // step counter on the right. Hidden when no topic is provided.
-  function renderHUD(meta, sceneIdx, totalScenes) {
-    const topic = (meta && (meta.topic || (meta.meta && meta.meta.topic))) || "";
-    if (!topic) return "";
-    const safe = escapeHtml(topic);
-    const idx = (sceneIdx || 0) + 1;
-    const tot = totalScenes || 1;
-    return `
-      <div class="fv-hud">
-        <div class="fv-hud-left">
-          <span class="fv-hud-dot"></span>
-          <span class="fv-hud-topic">${safe}</span>
-        </div>
-        <div class="fv-hud-right">
-          <span class="fv-hud-step">${idx} / ${tot}</span>
-        </div>
-      </div>
-    `;
+  // The server normally fills scene.layout (see
+  // backend/lib/design-system.js). This fallback keeps hand-made
+  // templates working when the field is missing.
+  function deriveLayout(scene) {
+    const cues = (scene && scene.visual_cues) || [];
+    const hasHero = cues.some((c) => c && (c.type === "icon" || c.type === "image"));
+    const hasBody = Boolean(
+      (scene.bullets && scene.bullets.length) ||
+        (scene.metrics && scene.metrics.length) ||
+        scene.codeSnippet ||
+        (scene.diagram && ((scene.diagram.nodes || []).length || (scene.diagram.steps || []).length))
+    );
+    if (hasBody && hasHero) return "split";
+    if (hasBody) return "stack";
+    return "title";
   }
 
-  // Bottom-of-frame subtitle bar. Voiceover text gets a karaoke
-  // highlight that advances left→right through the sentence as
-  // tMs progresses. Five equaliser bars animate via
-  // tickEqualizer(tMs) — same input → same heights, so the
-  // render stays bit-for-bit deterministic.
-  function renderSubtitleBar(voiceover, sceneDurationMs) {
-    const text = escapeHtml(voiceover || "");
-    const bars = [0, 1, 2, 3, 4]
-      .map((i) => `<span class="fv-eq-bar" data-eq-i="${i}" style="height:6px"></span>`)
-      .join("");
-    return `
-      <div class="fv-subbar">
-        <div class="fv-eq">${bars}</div>
-        <div class="fv-subbar-text" data-fv-voiceover="${escapeHtml(voiceover || "")}">
-          ${text}
-        </div>
-        <div class="fv-subbar-progress" data-fv-progress></div>
-      </div>
-    `;
+  // ── Enrichment renderers ───────────────────────────────────
+  //
+  // Every one of them is a no-op when its input is empty, so a
+  // template can call them unconditionally.
+
+  // Small pill above the heading.
+  function renderBadge(text) {
+    if (!text) return "";
+    return `<div class="fv-badge">${escapeHtml(text)}</div>`;
   }
 
-  // Update the equaliser bars and the karaoke highlight for
-  // time tMs inside the active scene (sceneStartMs is the
-  // scene's t=0 in the global timeline). Also drives the
-  // entrance animation for bullets, metrics and diagram steps.
-  // State is set via inline styles so the deterministic render
-  // path (which disables all CSS transitions/animations) still
-  // produces visible motion.
-  function tickEqualizer(tMs, sceneStartMs, sceneDurationMs) {
-    const localMs = Math.max(0, Math.min(tMs - sceneStartMs, sceneDurationMs));
-    // Equaliser bars
-    document.querySelectorAll(".fv-eq-bar").forEach((bar) => {
-      const i = Number(bar.dataset.eqI) || 0;
-      const phase = (tMs * 0.005 + i * 1.7) % (Math.PI * 2);
-      const h = 6 + 16 * Math.abs(Math.sin(phase));
-      bar.style.height = `${h.toFixed(1)}px`;
-    });
-    // Karaoke progress
-    const frac = sceneDurationMs > 0 ? Math.min(1, localMs / sceneDurationMs) : 0;
-    document.querySelectorAll("[data-fv-progress]").forEach((el) => {
-      el.style.width = `${(frac * 100).toFixed(2)}%`;
-    });
-    // Bullets entrance (180ms stagger, 280ms duration)
-    document.querySelectorAll("[data-bullet-i]").forEach((el) => {
-      const i = Number(el.dataset.bulletI) || 0;
-      const t = localMs - i * 180;
-      const k = t <= 0 ? 0 : t >= 280 ? 1 : t / 280;
-      const eased = k * (2 - k); // ease-out quad
-      el.style.opacity = String(eased.toFixed(3));
-      el.style.transform = `translateX(${((1 - eased) * -30).toFixed(1)}px)`;
-    });
-    // Metrics entrance (140ms stagger, 260ms duration)
-    document.querySelectorAll("[data-metric-i]").forEach((el) => {
-      const i = Number(el.dataset.metricI) || 0;
-      const t = localMs - i * 140;
-      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
-      const eased = 1 - Math.pow(1 - k, 3); // ease-out cubic
-      el.style.opacity = String(eased.toFixed(3));
-      el.style.transform = `translateY(${((1 - eased) * 20).toFixed(1)}px) scale(${(0.85 + 0.15 * eased).toFixed(3)})`;
-    });
-    // Diagram step entrance (120ms stagger, 240ms duration)
-    document.querySelectorAll("[data-diag-step-i]").forEach((el) => {
-      const i = Number(el.dataset.diagStepI) || 0;
-      const t = localMs - i * 120;
-      const k = t <= 0 ? 0 : t >= 240 ? 1 : t / 240;
-      el.style.opacity = String(k.toFixed(3));
-      el.style.transform = `translateX(${((1 - k) * -20).toFixed(1)}px)`;
-    });
-    // Diagram pills entrance
-    document.querySelectorAll("[data-diag-i]").forEach((el) => {
-      const i = Number(el.dataset.diagI) || 0;
-      const t = localMs - i * 110;
-      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
-      el.style.opacity = String(k.toFixed(3));
-      el.style.transform = `scale(${(0.85 + 0.15 * k).toFixed(3)})`;
-    });
+  // Caption under the heading: "what you are looking at".
+  function renderCue(text) {
+    if (!text) return "";
+    return `<div class="fv-cue"><span class="fv-cue-dot"></span>${escapeHtml(text)}</div>`;
   }
 
-  // Bullets: ordered list, slide-in from left with 180ms stagger.
-  // Visible only when bullets array is non-empty.
+  function renderSubheading(text) {
+    if (!text) return "";
+    return `<p class="fv-subheading">${escapeHtml(text)}</p>`;
+  }
+
+  // Bullets: one line each, marker dot on the left.
   function renderBullets(bullets) {
     if (!bullets || !bullets.length) return "";
     const items = bullets
@@ -716,46 +524,24 @@ window.fineVideoEngine = (() => {
     return `<ul class="fv-bullets">${items}</ul>`;
   }
 
-  // Metrics: 1–4 stat cards. Each has a value (large) and an
-  // optional label (small caps). Falls back to a single card
-  // when only one metric is given.
+  // Metric cards: big value, small label.
   function renderMetrics(metrics) {
     if (!metrics || !metrics.length) return "";
     const cards = metrics
       .map((m, i) => {
         const v = escapeHtml(m.value || "");
         const l = escapeHtml(m.label || "");
-        return `
-          <div class="fv-metric" data-metric-i="${i}">
+        return `<div class="fv-metric" data-metric-i="${i}">
             <div class="fv-metric-value">${v}</div>
             ${l ? `<div class="fv-metric-label">${l}</div>` : ""}
-          </div>
-        `;
+          </div>`;
       })
       .join("");
     return `<div class="fv-metrics fv-metrics-count-${Math.min(4, metrics.length)}">${cards}</div>`;
   }
 
-  // Pill rendered just above the heading when scene.badge is set.
-  function renderBadge(text) {
-    if (!text) return "";
-    return `<div class="fv-badge">${escapeHtml(text)}</div>`;
-  }
-
-  // Accent subheading rendered just below the heading when
-  // scene.subheading is set.
-  function renderSubheading(text) {
-    if (!text) return "";
-    return `<div class="fv-subheading">${escapeHtml(text)}</div>`;
-  }
-
-  // Code snippet: terminal-card with red/yellow/green dots
-  // header. Highlights simple patterns:
-  //   - lines starting with "$ "        → blue
-  //   - lines starting with "# "        → grey italic
-  //   - lines starting with "✓ " or "OK " → green
-  //   - lines starting with "⚠ "        → amber
-  // Other lines render plain. No external syntax highlighter.
+  // Terminal card. A tiny hand-rolled highlighter: shell prompts,
+  // comments, OK markers and warnings get their own colour.
   function renderCodeSnippet(snippet) {
     if (!snippet) return "";
     const lines = String(snippet)
@@ -769,21 +555,17 @@ window.fineVideoEngine = (() => {
         return `<span>${safe}</span>`;
       })
       .join("\n");
-    return `
-      <div class="fv-snippet">
+    return `<div class="fv-snippet">
         <div class="fv-snippet-bar">
           <span class="fv-snippet-dot fv-dot-r"></span>
           <span class="fv-snippet-dot fv-dot-y"></span>
           <span class="fv-snippet-dot fv-dot-g"></span>
         </div>
         <pre class="fv-snippet-body">${lines}</pre>
-      </div>
-    `;
+      </div>`;
   }
 
-  // Diagram: nodes (drawn as pills with SVG arrows between)
-  // plus an optional steps list rendered below. Used by
-  // tutorial.html when scene.diagram is set.
+  // Diagram: a row of pills joined by arrows, plus optional steps.
   function renderDiagram(diagram) {
     if (!diagram) return "";
     const nodes = diagram.nodes || [];
@@ -793,7 +575,9 @@ window.fineVideoEngine = (() => {
     if (nodes.length) {
       const pills = nodes
         .map((n, i) => `<div class="fv-diag-pill" data-diag-i="${i}">${escapeHtml(n)}</div>`)
-        .join('<svg class="fv-diag-arrow" viewBox="0 0 32 16" aria-hidden="true"><path d="M2 8 H26 M22 4 L26 8 L22 12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+        .join(
+          '<svg class="fv-diag-arrow" viewBox="0 0 32 16" aria-hidden="true"><path d="M2 8 H26 M22 4 L26 8 L22 12" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+        );
       nodesHtml = `<div class="fv-diag-nodes">${pills}</div>`;
     }
     let stepsHtml = "";
@@ -811,29 +595,386 @@ window.fineVideoEngine = (() => {
     return `<div class="fv-diagram">${nodesHtml}${stepsHtml}</div>`;
   }
 
+  // ── Subtitle bar with karaoke caption ──────────────────────
+  //
+  // Every word gets its own time window, derived from the scene
+  // duration and the relative length of the words. The highlight
+  // therefore advances in step with the voiceover instead of
+  // sliding a progress bar under the text.
+  function renderSubtitleBar(voiceover, sceneDurationMs) {
+    const raw = String(voiceover || "").trim();
+    const duration = Math.max(1, Number(sceneDurationMs) || 1);
+    const words = raw ? raw.split(/\s+/).filter(Boolean) : [];
+    const totalWeight = words.reduce((a, w) => a + w.length + 1, 0) || 1;
+    let acc = 0;
+    const spans = words
+      .map((w) => {
+        const start = (acc / totalWeight) * duration;
+        acc += w.length + 1;
+        const end = (acc / totalWeight) * duration;
+        return `<span class="fv-kw" data-kw-start="${start.toFixed(1)}" data-kw-end="${end.toFixed(1)}">${escapeHtml(
+          w
+        )}</span>`;
+      })
+      .join(" ");
+    const bars = [0, 1, 2, 3, 4]
+      .map((i) => `<span class="fv-eq-bar" data-eq-i="${i}" style="height:6px"></span>`)
+      .join("");
+    return `<div class="fv-subbar" aria-live="polite">
+        <div class="fv-eq">${bars}</div>
+        <div class="fv-subbar-text">${spans}</div>
+        <div class="fv-subbar-progress" data-fv-progress></div>
+      </div>`;
+  }
+
+  // Top-of-frame HUD: topic on the left, scene counter on the right.
+  function renderHUD(meta, sceneIdx, totalScenes) {
+    const topic = (meta && (meta.topic || (meta.meta && meta.meta.topic))) || "";
+    if (!topic) return "";
+    const idx = (sceneIdx || 0) + 1;
+    const tot = totalScenes || 1;
+    return `<div class="fv-hud">
+        <div class="fv-hud-left"><span class="fv-hud-dot"></span><span class="fv-hud-topic">${escapeHtml(topic)}</span></div>
+        <div class="fv-hud-right"><span class="fv-hud-step">${String(idx).padStart(2, "0")} / ${String(tot).padStart(
+        2,
+        "0"
+      )}</span></div>
+      </div>`;
+  }
+
+  // ── Scene composition ──────────────────────────────────────
+  //
+  // Builds the grid: content on the left, visual on the right
+  // (layout "split"), everything stacked for "stack", one centred
+  // column for "title".
+  function renderScene(scene, index, total, opts = {}) {
+    const s = scene || {};
+    const layout = ["title", "split", "stack"].includes(s.layout) ? s.layout : deriveLayout(s);
+    const cues = s.visual_cues || [];
+    const iconCue = cues.find((c) => c && c.type === "icon");
+    const heroSize = opts.heroSize || (layout === "title" ? 200 : 168);
+    const visual = [];
+
+    if (opts.visualHtml !== undefined) {
+      if (opts.visualHtml) visual.push(opts.visualHtml);
+    } else if (iconCue) {
+      const holder = document.createElement("div");
+      holder.appendChild(renderIcon(iconCue.name || "lightbulb", { size: heroSize }));
+      visual.push(`<div class="fv-hero"><div class="fv-hero-icon">${holder.innerHTML}</div></div>`);
+    }
+    const cueSlot = renderCueSlot(s);
+    if (cueSlot) visual.push(cueSlot);
+
+    const content = [
+      renderBadge(s.badge),
+      `<h2 class="fv-heading">${escapeHtml(s.heading || "")}</h2>`,
+      renderSubheading(s.subheading),
+      renderCue(s.visual_cue),
+      s.on_screen_text ? `<p class="fv-on-screen">${escapeHtml(s.on_screen_text)}</p>` : "",
+      renderBullets(s.bullets),
+      renderMetrics(s.metrics),
+      renderCodeSnippet(s.codeSnippet),
+      renderDiagram(s.diagram),
+    ]
+      .filter(Boolean)
+      .join("\n        ");
+
+    const visualHtml = visual.length
+      ? `\n        <div class="fv-col fv-col-visual" data-fit>${visual.join("\n        ")}</div>`
+      : "";
+
+    return `${opts.meta ? renderHUD(opts.meta, index, total) : ""}
+      <div class="fv-scene-grid" data-layout="${layout}">
+        <div class="fv-col fv-col-content" data-fit>
+        ${content}
+        </div>${visualHtml}
+      </div>
+      ${renderSubtitleBar(s.voiceover, s.duration_ms)}`;
+  }
+
+  // ── Stage construction ─────────────────────────────────────
+  //
+  // Creates one .fv-scene element per scene, measures it and
+  // caches the animated nodes so the per-frame tick never has to
+  // query the whole document.
+  function buildStage(stageEl, scenes, mountScene) {
+    stageEl.innerHTML = "";
+    const els = scenes.map((s, i) => {
+      const el = document.createElement("div");
+      el.className = "fv-scene";
+      el.dataset.sceneIndex = String(i);
+      el.dataset.layout = ["title", "split", "stack"].includes(s.layout) ? s.layout : deriveLayout(s);
+      el.innerHTML = mountScene(s, i, scenes.length);
+      stageEl.appendChild(el);
+      return el;
+    });
+    fitScenes(els);
+    cacheSceneNodes(els);
+    return els;
+  }
+
+  // Auto-fit: when a scene carries more content than the frame can
+  // hold, scale the whole grid down instead of letting the text run
+  // off the canvas. The scale is a measurement, so it is stable
+  // across renders.
+  function fitScenes(sceneEls) {
+    for (const el of sceneEls) {
+      const grid = el.querySelector(".fv-scene-grid");
+      if (!grid) continue;
+      grid.style.transform = "";
+      const columns = Array.from(el.querySelectorAll("[data-fit]"));
+      let needH = 0;
+      let needW = 0;
+      for (const col of columns) {
+        needH = Math.max(needH, col.scrollHeight);
+        needW = Math.max(needW, col.scrollWidth);
+      }
+      const availH = grid.clientHeight;
+      const availW = grid.clientWidth;
+      if (!availH || !availW || !needH) continue;
+      const scale = Math.min(1, availH / needH, availW / needW);
+      if (scale < 0.995) {
+        grid.style.transform = `scale(${scale.toFixed(4)})`;
+        grid.style.transformOrigin = "center center";
+      }
+    }
+  }
+
+  // Cache the nodes that move, per scene. Without this the tick
+  // would run four document-wide queries per frame.
+  function cacheSceneNodes(sceneEls) {
+    for (const el of sceneEls) {
+      el.__fv = {
+        eq: Array.from(el.querySelectorAll(".fv-eq-bar")),
+        progress: Array.from(el.querySelectorAll("[data-fv-progress]")),
+        words: Array.from(el.querySelectorAll("[data-kw-start]")),
+        bullets: Array.from(el.querySelectorAll("[data-bullet-i]")),
+        metrics: Array.from(el.querySelectorAll("[data-metric-i]")),
+        diagSteps: Array.from(el.querySelectorAll("[data-diag-step-i]")),
+        diagPills: Array.from(el.querySelectorAll("[data-diag-i]")),
+        subbar: el.querySelector(".fv-subbar"),
+      };
+    }
+  }
+
+  // ── Timeline ───────────────────────────────────────────────
+  //
+  // Scene 0 starts at 0, scene N starts when scene N-1 ends. The
+  // intro/outro windows describe the cross-fade between two
+  // scenes; they do not change the total duration.
+  function buildTimeline(scenes) {
+    let cumulative = 0;
+    const start = [];
+    for (let i = 0; i < scenes.length; i++) {
+      start.push(cumulative);
+      cumulative += scenes[i].duration_ms || 0;
+    }
+    return { start, totalMs: cumulative, intro: INTRO_MS, outro: OUTRO_MS };
+  }
+
+  // ── Per-frame animation ────────────────────────────────────
+  //
+  // Pure function of (localMs, durationMs): the same timestamp
+  // always produces the same pixels.
+  function tickScene(el, localMs, durationMs) {
+    const cache = el.__fv;
+    if (!cache) return;
+    const local = clamp(localMs, 0, durationMs || 0);
+
+    // Equaliser bars
+    for (const bar of cache.eq) {
+      const i = Number(bar.dataset.eqI) || 0;
+      const phase = (local * 0.005 + i * 1.7) % (Math.PI * 2);
+      const h = 6 + 16 * Math.abs(Math.sin(phase));
+      bar.style.height = `${h.toFixed(1)}px`;
+    }
+
+    // Karaoke: light up the word being spoken.
+    for (const w of cache.words) {
+      const start = Number(w.dataset.kwStart) || 0;
+      const end = Number(w.dataset.kwEnd) || 0;
+      w.classList.toggle("fv-kw-now", local >= start && local < end);
+      w.classList.toggle("fv-kw-done", local >= end);
+    }
+
+    // Progress line under the caption
+    const frac = durationMs > 0 ? clamp(local / durationMs, 0, 1) : 0;
+    for (const p of cache.progress) p.style.width = `${(frac * 100).toFixed(2)}%`;
+
+    // Bullets: 180ms stagger, 280ms duration, ease-out quad.
+    for (const b of cache.bullets) {
+      const i = Number(b.dataset.bulletI) || 0;
+      const t = local - i * 180;
+      const k = t <= 0 ? 0 : t >= 280 ? 1 : t / 280;
+      const eased = easeOutQuad(k);
+      b.style.opacity = eased.toFixed(3);
+      b.style.transform = `translateX(${((1 - eased) * -30).toFixed(1)}px)`;
+    }
+
+    // Metrics: 140ms stagger, 260ms duration, ease-out cubic.
+    for (const m of cache.metrics) {
+      const i = Number(m.dataset.metricI) || 0;
+      const t = local - i * 140;
+      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
+      const eased = easeOutCubic(k);
+      m.style.opacity = eased.toFixed(3);
+      m.style.transform = `translateY(${((1 - eased) * 20).toFixed(1)}px) scale(${(0.85 + 0.15 * eased).toFixed(3)})`;
+    }
+
+    // Diagram steps: 120ms stagger, 240ms duration.
+    for (const s of cache.diagSteps) {
+      const i = Number(s.dataset.diagStepI) || 0;
+      const t = local - i * 120;
+      const k = t <= 0 ? 0 : t >= 240 ? 1 : t / 240;
+      s.style.opacity = k.toFixed(3);
+      s.style.transform = `translateX(${((1 - k) * -20).toFixed(1)}px)`;
+    }
+
+    // Diagram pills: 110ms stagger, 260ms duration.
+    for (const p of cache.diagPills) {
+      const i = Number(p.dataset.diagI) || 0;
+      const t = local - i * 110;
+      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
+      p.style.opacity = k.toFixed(3);
+      p.style.transform = `scale(${(0.85 + 0.15 * k).toFixed(3)})`;
+    }
+  }
+
+  // ── Seeker ─────────────────────────────────────────────────
+  //
+  // `seek(t)` sets the whole frame state for time t: which scene is
+  // on screen, how opaque it is, and how far its animations have
+  // progressed.
+  function makeSeeker(sceneEls, timeline, scenes) {
+    return function seek(tMs) {
+      let activeIdx = 0;
+      for (let i = 0; i < timeline.start.length; i++) {
+        if (tMs >= timeline.start[i]) activeIdx = i;
+        else break;
+      }
+      for (let i = 0; i < sceneEls.length; i++) {
+        const el = sceneEls[i];
+        const local = tMs - timeline.start[i];
+        const dur = scenes[i].duration_ms || 0;
+        let opacity = 0;
+        let state = "";
+        if (local < 0) {
+          // Pre-roll: the next scene fades in over the last
+          // OUTRO_MS of the previous one.
+          if (i > 0 && local > -OUTRO_MS) {
+            opacity = (local + OUTRO_MS) / OUTRO_MS;
+            state = "entering";
+          }
+        } else if (local < dur) {
+          if (local < INTRO_MS) {
+            opacity = local / INTRO_MS;
+            state = "entering";
+          } else if (local > dur - OUTRO_MS) {
+            opacity = 1 - (local - (dur - OUTRO_MS)) / OUTRO_MS;
+            state = "exiting";
+          } else {
+            opacity = 1;
+            state = "active";
+          }
+        }
+        el.style.opacity = opacity.toFixed(3);
+        el.style.visibility = opacity > 0.002 ? "visible" : "hidden";
+        el.classList.toggle("active", state === "active" || state === "entering");
+        el.classList.toggle("entering", state === "entering");
+        el.classList.toggle("exiting", state === "exiting");
+        // The caption belongs to the scene being spoken: only one
+        // subtitle bar is ever readable.
+        if (el.__fv && el.__fv.subbar) {
+          el.__fv.subbar.style.opacity = i === activeIdx ? "1" : "0";
+        }
+      }
+      const active = scenes[activeIdx];
+      if (active && sceneEls[activeIdx]) {
+        tickScene(sceneEls[activeIdx], tMs - timeline.start[activeIdx], active.duration_ms || 0);
+      }
+      return { activeIdx, tMs, totalMs: timeline.totalMs };
+    };
+  }
+
+  // ── Realtime playback ──────────────────────────────────────
+  //
+  // The renderer records the wall-clock offset of the first frame
+  // in window.__t0_offset_ms. It used to be written when the video
+  // ended, which pushed the audio past the end of the picture.
+  function runRealtime(seek, totalMs, onDone) {
+    const t0 = performance.now();
+    let firstFrame = true;
+    const id = setInterval(() => {
+      const t = performance.now() - t0;
+      if (firstFrame) {
+        firstFrame = false;
+        window.__t0_offset_ms = t;
+      }
+      seek(t);
+      if (t >= totalMs) {
+        clearInterval(id);
+        onDone?.();
+      }
+    }, 30);
+    return id;
+  }
+
+  // For deterministic renders: kill every CSS transition and
+  // animation so a `seek(t)` lands exactly on the frame we want.
+  function freezeTransitions() {
+    const style = document.createElement("style");
+    style.textContent = "*, *::before, *::after { transition: none !important; animation: none !important; }";
+    document.head.appendChild(style);
+  }
+
+  // ── Init ───────────────────────────────────────────────────
+  const EXTRA_CSS = `
+    .fv-badge {
+      align-self: flex-start; display: inline-flex; align-items: center;
+      padding: 6px 14px; border-radius: var(--fv-radius-pill);
+      background: var(--fv-accent-soft); border: 1px solid var(--fv-border-strong);
+      color: var(--fv-text-muted); font-size: var(--fv-text-xs);
+      font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase;
+    }
+    .fv-scene[data-layout="title"] .fv-badge { align-self: center; }
+    .fv-cue-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fv-brand); }
+    .fv-image { display: flex; align-items: center; justify-content: center; }
+  `;
+
+  function init() {
+    if (document.getElementById("fv-engine-styles")) return;
+    const style = document.createElement("style");
+    style.id = "fv-engine-styles";
+    style.textContent = LAYOUT_CSS + EXTRA_CSS;
+    document.head.appendChild(style);
+  }
+
+  // ── Public API ─────────────────────────────────────────────
   return {
     applyBrand,
     buildStage,
     buildTimeline,
     makeSeeker,
     runRealtime,
-    defaultCueRenderer,
-    escapeHtml,
     freezeTransitions,
     init,
-    // Rich-visual API
+    fitScenes,
+    deriveLayout,
+    renderScene,
     renderIcon,
     renderImage,
     renderChart,
     applyDecoration,
-    // Enrichment API (Phase 4 — integrated by templates when fields present)
+    renderCueSlot,
+    escapeHtml,
+    // Enrichment API
     renderHUD,
     renderSubtitleBar,
-    tickEqualizer,
+    renderBadge,
+    renderCue,
+    renderSubheading,
     renderBullets,
     renderMetrics,
-    renderBadge,
-    renderSubheading,
     renderCodeSnippet,
     renderDiagram,
   };

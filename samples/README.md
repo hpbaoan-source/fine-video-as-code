@@ -14,7 +14,7 @@
 
 These samples replace the earlier v1 set (cloud-computing, SaaS promo, Jira tutorial). Three changes:
 
-- **Engine:** Playwright + HTML/CSS + ffmpeg-static. Replaces Remotion (license: "Remotion for Automators" charges $100/mo for any prompt-to-video app — not compatible with a free public repo).
+- **Engine:** Playwright + headless Chromium + HTML/CSS templates + ffmpeg-static — one permissive licence for the whole stack, no bundler in the way.
 - **Scripts:** Hand-written Vietnamese scripts (not LLM-generated). Each scene is a real product of editing + research, not a template fill-in.
 - **Visuals:** Per-template distinct style — clean dark editorial (tech) / bold scale-up (promo) / slide-in step cards (tutorial).
 
