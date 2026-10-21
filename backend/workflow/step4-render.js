@@ -65,7 +65,10 @@ const DEFAULT_FPS = Number.parseInt(process.env.RENDER_FPS || "30", 10);
 // Hard cap on the number of PNG frames a single render may write.
 // At 1080p a PNG is ~1–3 MB, so an unbounded frame count fills the
 // disk within minutes. 1800 frames = 60 s of video at 30 fps.
-const MAX_FRAMES = 1800;
+const MAX_FRAMES = 3000;
+// Never drop below this frame rate when the frame budget forces a
+// downgrade — below ~20fps the motion starts to look broken.
+const MIN_FPS = 20;
 
 // Upper bound for the audio offset taken from the page. The
 // templates are supposed to report the delay between the start of
@@ -192,22 +195,38 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
       const totalMs = sceneData.scenes.reduce((a, s) => a + s.duration_ms, 0);
       const framesDir = path.join(workDir, "frames");
       await fs.mkdir(framesDir, { recursive: true });
-      const frameCount = Math.ceil((totalMs / 1000) * fps);
+      const totalSec = totalMs / 1000;
+      // Frame budget: the PNG frames are heavy, so the renderer
+      // never writes more than MAX_FRAMES of them. A video that is
+      // too long for the requested frame rate is rendered at a
+      // slightly lower rate instead of failing outright.
+      let effectiveFps = fps;
+      let frameCount = Math.ceil(totalSec * effectiveFps);
       if (frameCount > MAX_FRAMES) {
-        throw new Error(
-          `Render would need ${frameCount} frames (limit ${MAX_FRAMES}). ` +
-            `Shorten the video (max ${Math.floor((MAX_FRAMES / fps) * 1000) / 1000}s at ${fps}fps) ` +
-            `or lower the frame rate.`
+        const downgraded = Math.floor(MAX_FRAMES / totalSec);
+        if (downgraded < MIN_FPS) {
+          throw new Error(
+            `Render would need ${frameCount} frames (limit ${MAX_FRAMES}). ` +
+              `Shorten the video (max ${Math.floor((MAX_FRAMES / MIN_FPS) * 10) / 10}s at ${MIN_FPS}fps) ` +
+              `or lower the frame rate.`
+          );
+        }
+        effectiveFps = downgraded;
+        frameCount = Math.ceil(totalSec * effectiveFps);
+        onLog?.(
+          `Frame budget: lowering ${fps}fps to ${effectiveFps}fps to stay under ${MAX_FRAMES} frames`
         );
       }
-      onLog?.(`Deterministic: ${frameCount} frames @ ${fps}fps (${(totalMs / 1000).toFixed(1)}s)`);
-      const result = await renderDeterministic(
+      onLog?.(
+        `Deterministic: ${frameCount} frames @ ${effectiveFps}fps (${totalSec.toFixed(1)}s)`
+      );
+      await renderDeterministic(
         templateFile, sceneData, port, framesDir, frameCount, viewport, onLog
       );
       t0OffsetMs = 0; // frames are already aligned to t=0
       onProgress?.(40);
       try {
-        await encodePngsToMp4(framesDir, videoRawPath, fps, viewport, onLog);
+        await encodePngsToMp4(framesDir, videoRawPath, effectiveFps, viewport, onLog);
       } finally {
         // The PNG frames are hundreds of MB — drop them as soon as
         // they are encoded.

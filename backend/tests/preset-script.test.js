@@ -9,6 +9,7 @@ import {
   resolvePresetScript,
   distributeDurations,
   templateSceneCount,
+  capPattern,
   MAX_SCENE_DURATION_MS,
 } from "../workflow/step1-script.js";
 
@@ -119,4 +120,48 @@ test("step1Script: the topic cue is added to the last scene, not just the first"
     last.visual_cues.some((c) => c.position === "top"),
     "the last scene should carry the topic cue"
   );
+});
+test("templateSceneCount: returns the number of scenes per template", () => {
+  assert.equal(templateSceneCount("tech-explainer"), 6);
+  assert.equal(templateSceneCount("promo"), 5);
+  assert.equal(templateSceneCount("tutorial"), 7);
+  // Aliases resolve onto the canonical template.
+  assert.equal(templateSceneCount("ad"), 5);
+});
+
+test("templateSceneCount: honours the maxScenes cap", () => {
+  assert.equal(templateSceneCount("tutorial", 3), 3);
+  assert.equal(templateSceneCount("tutorial", 6), 6);
+  // A cap above the template size changes nothing.
+  assert.equal(templateSceneCount("promo", 20), 5);
+});
+
+test("capPattern: trims to the cap and always keeps the closing role", () => {
+  const pattern = [
+    { role: "a" }, { role: "b" }, { role: "c" }, { role: "outro" },
+  ];
+  assert.deepEqual(capPattern(pattern, 2).map((p) => p.role), ["a", "outro"]);
+  assert.deepEqual(capPattern(pattern, 3).map((p) => p.role), ["a", "b", "outro"]);
+  // No cap (or a cap above the size) leaves the pattern untouched.
+  assert.equal(capPattern(pattern, 10).length, 4);
+  assert.equal(capPattern(pattern, undefined).length, 4);
+});
+
+test("step1Script: maxScenes caps the script and keeps the outro", async () => {
+  const script = await step1Script(
+    {
+      topic: "Test",
+      template: "tutorial",
+      language: "vi",
+      voice: "vi-VN-HoaiMyNeural",
+      duration: 60,
+      maxScenes: 3,
+    },
+    {}
+  );
+  assert.equal(script.scenes.length, 3);
+  const last = script.scenes[script.scenes.length - 1];
+  assert.match(last.voiceover, /Tóm lại/, "the closing scene should survive the cap");
+  // The dropped middle step is gone.
+  assert.equal(script.scenes.length, 3);
 });

@@ -212,16 +212,25 @@ directory as a module. Glob patterns need Node ≥ 21; on Node 20 use
 The suite lives in `backend/tests/` and runs on the built-in Node test runner — no
 extra dependencies:
 
-| File                  | Covers                                                                        |
-| --------------------- | ----------------------------------------------------------------------------- |
-| `schema.test.js`      | Input/output validation, template aliases, voice enum.                        |
-| `path-guard.test.js`  | Path-traversal blocking for `presetScript`.                                   |
-| `ffmpeg-args.test.js` | The exact ffmpeg argv shape (padding, silence fallback).                      |
-| `duration.test.js`    | Duration mapping between script, audio and frames.                            |
-| `determinism.test.js` | Two identical renders produce identical bytes (skips if Chromium is missing). |
-| `sync.test.js`        | Audio and video streams of a sample MP4 are within ±0.1 s.                    |
-| `cleanup.test.js`     | Expired job workdirs are removed.                                             |
-| `env.test.js`         | `.env.example` / `.gitignore` / `--env-file` guard.                           |
+| File                    | Covers                                                                        |
+| ----------------------- | ----------------------------------------------------------------------------- |
+| `schema.test.js`        | Input/output validation, template aliases, voice enum, font whitelist.        |
+| `path-guard.test.js`    | Path-traversal blocking for `presetScript`.                                   |
+| `preset-script.test.js` | Preset script guard, duration spread, `maxScenes` cap.                        |
+| `ffmpeg-args.test.js`   | The exact ffmpeg argv shape (padding, silence fallback).                      |
+| `duration.test.js`      | Duration mapping between script, audio and frames.                            |
+| `determinism.test.js`   | Two identical renders produce identical bytes (skips if Chromium is missing). |
+| `sync.test.js`          | Audio and video streams of a sample MP4 are within ±0.1 s.                    |
+| `tts-sync.test.js`      | TTS length measurement overwrites the scene duration.                         |
+| `cleanup.test.js`       | Expired job workdirs are removed.                                             |
+| `env.test.js`           | `.env.example` / `.gitignore` / `--env-file` guard.                           |
+| `job-store.test.js`     | Job lifecycle, TTL and the terminal event payload.                            |
+| `job-queue.test.js`     | The serial queue accepts one job at a time.                                   |
+| `rate-limit.test.js`    | The per-IP token bucket used by `POST /api/generate`.                         |
+| `download.test.js`      | Download headers, expired jobs and the admin endpoint.                        |
+| `voice.test.js`         | The per-language voice whitelist.                                             |
+| `video-size.test.js`    | `resolution` × `aspectRatio` → pixel size.                                    |
+| `tokens.test.js`        | The design tokens and the engine stay in sync.                                |
 
 Add a test for any new logic you ship.
 

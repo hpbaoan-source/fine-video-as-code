@@ -36,7 +36,6 @@ export async function step2TTS(script, { input, workDir, onLog, onProgress }) {
   if (!voiceCheck.ok) {
     throw new Error(voiceCheck.error);
   }
-  const lang = voiceCheck.language;
   const allowedVoices = voiceCheck.allowed || [];
   const candidates = [voiceCheck.voice, ...allowedVoices.filter((v) => v !== voiceCheck.voice)];
 

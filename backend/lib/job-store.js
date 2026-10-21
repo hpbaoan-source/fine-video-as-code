@@ -132,6 +132,9 @@ export class JobStore {
       if (!terminal && !stale) continue;
 
       job.status = "expired";
+      // Tell the subscribers before their listeners go away — an
+      // SSE client must not wait forever for a terminal event.
+      this.emit(id, { type: "expired", message: "Job expired" });
       this.emitters.get(id)?.removeAllListeners();
       this.emitters.delete(id);
       // Best-effort: remove the on-disk workDir so tmp/jobs

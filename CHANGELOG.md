@@ -65,10 +65,52 @@ that keeps the tree honest.
 - **`scripts/upload-moon.mjs` reads its configuration from the environment**
   (`MOON_API_URL`, `MOON_PASSCODE`). No credential and no default are committed any
   more; the script fails with a clear message when a variable is missing.
-- **README rewritten** around the current feature set: real requirements (Node ≥ 20,
+- **README rewritten** around the current feature set: real requirements (Node ≥ 22.9,
   Python + Edge-TTS, `npm run setup`), a working quick start, the environment
   variables from `.env.example`, an accurate repository map and the lint/test
   workflow.
+
+### Security & robustness
+
+- **`presetScript` can no longer read arbitrary files.** The field is user input and
+  was joined onto the process cwd; it is now resolved against the repository's
+  `samples/` directory only (`backend/lib/path-guard.js`), and anything else —
+  absolute paths, `../` traversal, a non-JSON file — is rejected with a clear error.
+- **`fontFamily` is a whitelist, not free text.** The value was interpolated straight
+  into `body { font-family }`, which is a CSS-injection vector; it is now a Zod enum
+  that mirrors the renderer's own font whitelist.
+- **Dead input fields removed.** `backgroundMusic` and `aiModel` were never
+  implemented — the form even said "not yet implemented" — yet both were part of the
+  API contract. They are gone from the schema and from the form. Zod strips unknown
+  keys, so an old client keeps working instead of getting a 400.
+- **`maxScenes` is now actually applied.** The cap trims the template pattern (the
+  closing scene is always kept) and feeds the duration-budget check.
+- **The duration is validated against the scene budget.** A scene can never exceed
+  30 s, so a `duration` longer than `scenes × 30 s` is rejected with HTTP 400
+  instead of failing deep inside step 1 with a Zod error.
+- **Rate limit on the render endpoint.** `POST /api/generate` accepts at most
+  `RATE_LIMIT_JOBS` (default 3) requests per IP per minute; over the limit the
+  answer is HTTP 429 with a `Retry-After` header.
+- **The admin endpoint is gated.** `GET /api/jobs` answers 404 unless `ADMIN_TOKEN`
+  is configured, and then requires the token (`X-Admin-Token`).
+- **The job store is bounded.** Finished jobs expire after a TTL, stale jobs after a
+  hard max age, and an expiring job emits a terminal `expired` event so an SSE client
+  never waits forever.
+- **Clean shutdown.** `SIGTERM`/`SIGINT` close the Chromium instances the renderer
+  left open, stop the queue and reclaim the per-job temp directories.
+- **The PNG frames are deleted after the encode.** A 100 s video wrote ~3000 frames
+  (hundreds of MB) that stayed on disk forever.
+
+### Fixed
+
+- **Audio/video sync** — a NaN length probe from ffmpeg used to push the audio
+  offset out of range; the offset is now clamped to the video length.
+- **A failed job now reaches the client as an `error` event** instead of a stream
+  that ends without a reason.
+- **`resolution` and `aspectRatio` are honoured** by the renderer (they were
+  validated but ignored).
+- **The deterministic preview loop no longer spins** — the preview URL is only
+  started when the render is not deterministic.
 
 ### Documentation
 

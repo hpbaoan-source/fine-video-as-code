@@ -375,28 +375,36 @@ ${tokenCss()}
 
   // Horizontal bar chart from a { label: value } object. Values are
   // normalised against the largest one.
+  //
+  // opts.max     — fixed scale maximum (use when several charts
+  //                must be comparable, e.g. a benchmark series)
+  // opts.unit    — suffix printed after every value ("%", " ms")
+  // opts.labelWidth — width of the label column in px
   function renderChart(data, opts = {}) {
     const labels = Object.keys(data || {});
     if (!labels.length) return document.createElement("div");
     const values = labels.map((k) => Number(data[k]) || 0);
-    const max = Math.max(...values, 1);
+    const fixedMax = Number(opts.max);
+    const max = fixedMax > 0 ? fixedMax : Math.max(...values, 1);
+    const unit = opts.unit ? String(opts.unit) : "";
+    const labelWidth = Number(opts.labelWidth) > 0 ? Number(opts.labelWidth) : 200;
     const wrap = document.createElement("div");
     wrap.className = "chart";
     wrap.style.cssText = "display:flex;flex-direction:column;gap:14px;width:100%;";
     labels.forEach((label, i) => {
-      const pct = (values[i] / max) * 100;
+      const pct = Math.max(0, Math.min(100, (values[i] / max) * 100));
       const row = document.createElement("div");
       row.style.cssText = "display:flex;align-items:center;gap:18px;";
       const lbl = document.createElement("div");
       lbl.textContent = label;
-      lbl.style.cssText = "width:200px;color:var(--fv-text-muted);font-size:20px;text-align:right;";
+      lbl.style.cssText = `width:${labelWidth}px;color:var(--fv-text-muted);font-size:20px;text-align:right;`;
       const bg = document.createElement("div");
       bg.style.cssText = "flex:1;height:22px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;";
       const bar = document.createElement("div");
       bar.style.cssText = `width:${pct.toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--fv-brand),var(--fv-accent));`;
       bg.appendChild(bar);
       const val = document.createElement("div");
-      val.textContent = String(values[i]);
+      val.textContent = `${values[i]}${unit}`;
       val.style.cssText = "width:110px;color:var(--fv-accent);font-size:20px;font-weight:700;";
       row.appendChild(lbl);
       row.appendChild(bg);
@@ -425,8 +433,6 @@ ${tokenCss()}
         const size = 2 + rand() * 5;
         const x = rand() * 100;
         const y = rand() * 100;
-        const dur = 6 + rand() * 8;
-        const delay = -rand() * dur;
         const opacity = 0.1 + rand() * 0.35;
         dot.style.cssText = `position:absolute;left:${x}%;top:${y}%;width:${size}px;height:${size}px;border-radius:50%;background:${colors[i % colors.length]};opacity:${opacity};`;
         layer.appendChild(dot);
@@ -457,7 +463,7 @@ ${tokenCss()}
       if (!data || typeof data !== "object") return "";
       const host = document.createElement("div");
       host.className = "fv-cue-slot";
-      host.appendChild(renderChart(data));
+      host.appendChild(renderChart(data, { max: cue.max, unit: cue.unit }));
       return host.outerHTML;
     }
     if (cue.type === "image") {

@@ -26,6 +26,9 @@ export const GenerateInputSchema = z.object({
   voice: z.string().min(1).max(80), // validated against per-language whitelist in step2-tts.js
   duration: z.number().int().min(15).max(300), // seconds
   fps: z.number().int().min(15).max(60).default(30),
+  // Deterministic renders the same file for the same script. The
+  // portal does not expose it; the CLI and the tests do.
+  deterministic: z.boolean().optional(),
   resolution: ResolutionEnum.default("1080p"),
   aspectRatio: AspectEnum.default("16:9"),
   brandColor: z
@@ -36,10 +39,28 @@ export const GenerateInputSchema = z.object({
     .string()
     .regex(/^#[0-9a-fA-F]{6}$/, "must be #rrggbb")
     .default("#F59E0B"),
-  fontFamily: z.string().min(1).max(80).default("Inter"),
-  backgroundMusic: z.boolean().default(false),
+  fontFamily: z
+    .enum([
+      "Inter",
+      "Georgia",
+      "Roboto",
+      "Roboto Slab",
+      "system-ui",
+      "Arial",
+      "Helvetica",
+      "Verdana",
+      "Times New Roman",
+      "Segoe UI",
+      "JetBrains Mono",
+      "Fira Code",
+      "Consolas",
+      "Menlo",
+      "monospace",
+      "serif",
+      "sans-serif",
+    ])
+    .default("Inter"),
   maxScenes: z.number().int().min(2).max(20).default(6),
-  aiModel: z.string().default("default"),
   presetScript: z.string().min(1).max(500).optional(),
   outputFilename: z
     .string()
@@ -142,5 +163,5 @@ export const JobStatusEnum = z.enum([
 // ─── Helpers ───────────────────────────────────────────────
 export const VoicePresets = {
   vi: ["vi-VN-HoaiMyNeural", "vi-VN-NamMinhNeural"],
-  en: ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural"],
+  en: ["en-US-AriaNeural", "en-US-GuyNeural", "en-US-JennyNeural", "en-US-DavisNeural"],
 };

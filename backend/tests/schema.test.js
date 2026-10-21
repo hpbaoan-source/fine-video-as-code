@@ -222,3 +222,62 @@ test("SceneSchema without enrichment fields still validates", () => {
   assert.equal(s.metrics, undefined);
   assert.equal(s.badge, undefined);
 });
+test("fontFamily: only whitelisted fonts are accepted", () => {
+  const base = {
+    topic: "x-topic-name",
+    template: "tech-explainer",
+    voice: "vi-VN-HoaiMyNeural",
+    duration: 30,
+  };
+  // A free-form font string used to be interpolated straight into
+  // `body { font-family }` — a CSS injection vector.
+  assert.throws(
+    () => GenerateInputSchema.parse({ ...base, fontFamily: "Inter; background:url(javascript:1)" }),
+    /fontFamily|invalid/i
+  );
+  assert.throws(() => GenerateInputSchema.parse({ ...base, fontFamily: "Comic Sans" }), /fontFamily|invalid/i);
+  for (const ok of ["Inter", "Georgia", "system-ui", "Roboto Slab", "JetBrains Mono", "serif"]) {
+    assert.equal(GenerateInputSchema.parse({ ...base, fontFamily: ok }).fontFamily, ok);
+  }
+});
+
+test("removed fields are stripped instead of breaking the request", () => {
+  // The old form sent `backgroundMusic` / `aiModel` — both were
+  // never implemented. Zod drops unknown keys, so an old client
+  // keeps working instead of getting a 400.
+  const out = GenerateInputSchema.parse({
+    topic: "x-topic-name",
+    template: "tech-explainer",
+    voice: "vi-VN-HoaiMyNeural",
+    duration: 30,
+    backgroundMusic: true,
+    aiModel: "gpt-4o",
+  });
+  assert.equal(out.backgroundMusic, undefined);
+  assert.equal(out.aiModel, undefined);
+});
+
+test("maxScenes: out of range is rejected, in range is kept", () => {
+  const base = {
+    topic: "x-topic-name",
+    template: "tech-explainer",
+    voice: "vi-VN-HoaiMyNeural",
+    duration: 30,
+  };
+  assert.throws(() => GenerateInputSchema.parse({ ...base, maxScenes: 1 }));
+  assert.throws(() => GenerateInputSchema.parse({ ...base, maxScenes: 21 }));
+  assert.equal(GenerateInputSchema.parse({ ...base, maxScenes: 3 }).maxScenes, 3);
+  assert.equal(GenerateInputSchema.parse(base).maxScenes, 6);
+});
+
+test("deterministic is optional and defaults to undefined", () => {
+  const base = {
+    topic: "x-topic-name",
+    template: "tech-explainer",
+    voice: "vi-VN-HoaiMyNeural",
+    duration: 30,
+  };
+  assert.equal(GenerateInputSchema.parse(base).deterministic, undefined);
+  assert.equal(GenerateInputSchema.parse({ ...base, deterministic: false }).deterministic, false);
+  assert.equal(GenerateInputSchema.parse({ ...base, deterministic: true }).deterministic, true);
+});

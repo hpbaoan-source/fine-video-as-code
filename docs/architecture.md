@@ -92,6 +92,10 @@ backend/
 │   ├── job-store.js       # In-memory job state + per-job EventEmitter
 │   ├── job-queue.js       # Single-process serial executor
 │   ├── path-guard.js      # isPathInside() — blocks path-traversal in presetScript
+│   ├── paths.js           # Path helpers shared by the workflow steps
+│   ├── rate-limit.js      # Per-IP token bucket for POST /api/generate
+│   ├── voice.js           # Per-language voice whitelist (shared with the API layer)
+│   ├── video-size.js      # resolution × aspectRatio → pixel size
 │   ├── cleanup.js         # Removes expired job workdirs
 │   └── llm-client.js      # Provider-agnostic LLM wrapper (env-only config)
 ├── workflow/
@@ -106,14 +110,23 @@ backend/
 │   ├── tutorial.html
 │   └── README.md
 └── tests/                 # node --test, no extra deps
-    ├── schema.test.js
-    ├── path-guard.test.js
-    ├── ffmpeg-args.test.js
-    ├── duration.test.js
-    ├── determinism.test.js
-    ├── sync.test.js
-    ├── cleanup.test.js
-    └── env.test.js
+    ├── schema.test.js        # Zod input/output schemas
+    ├── path-guard.test.js    # Path-traversal guard
+    ├── preset-script.test.js # presetScript guard, duration spread, maxScenes
+    ├── ffmpeg-args.test.js   # ffmpeg command construction
+    ├── duration.test.js      # Duration clamping and distribution
+    ├── determinism.test.js   # Deterministic render path
+    ├── sync.test.js          # Audio/video sync
+    ├── tts-sync.test.js      # TTS length measurement
+    ├── cleanup.test.js       # Job workdir cleanup
+    ├── env.test.js           # Environment contract
+    ├── job-store.test.js     # Job lifecycle + TTL
+    ├── job-queue.test.js     # Serial queue
+    ├── rate-limit.test.js    # Per-IP rate limiter
+    ├── download.test.js      # Download headers + admin endpoint
+    ├── voice.test.js         # Voice whitelist
+    ├── video-size.test.js    # resolution × aspectRatio
+    └── tokens.test.js        # Design tokens ↔ engine sync
 ```
 
 ### Frontend layout

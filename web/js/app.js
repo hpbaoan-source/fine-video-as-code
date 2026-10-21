@@ -113,7 +113,6 @@ $("#gen-form").addEventListener("submit", async (e) => {
   data.duration = Number(data.duration);
   data.fps = Number(data.fps);
   data.maxScenes = Number(data.maxScenes);
-  data.backgroundMusic = data.backgroundMusic === "on";
   // Remove empty filename
   if (!data.outputFilename) delete data.outputFilename;
 

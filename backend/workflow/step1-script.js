@@ -91,15 +91,24 @@ const TEMPLATES = {
   },
 };
 
+// Trim a template pattern down to `max` scenes. The last role
+// (outro / cta / recap) is always kept — dropping it would leave
+// the video without a closing beat.
+export function capPattern(pattern, max) {
+  const n = Array.isArray(pattern) ? pattern.length : 0;
+  if (!max || max >= n || max < 2) return pattern;
+  return [...pattern.slice(0, max - 1), pattern[n - 1]];
+}
+
 function buildTemplateScript(input) {
   const tmpl = TEMPLATES[input.template];
-  const pattern = tmpl.pattern;
+  const pattern = capPattern(tmpl.pattern, input.maxScenes);
 
   // Per-scene text length, then estimated duration. Don't divide
   // the target total evenly — short hook lines and longer deep-dives
   // have very different TTS runtimes.
   const scenes = pattern.map((p, i) => {
-    const voiceover = generateVoiceoverForRole(input, p, i, pattern.length);
+    const voiceover = generateVoiceoverForRole(input, p);
     return {
       id: `scene-${i + 1}`,
       voiceover,
@@ -125,9 +134,7 @@ function buildTemplateScript(input) {
   };
 }
 
-function generateVoiceoverForRole(input, p, idx, total) {
-  const isLast = idx === total - 1;
-  const isFirst = idx === 0;
+function generateVoiceoverForRole(input, p) {
   const { topic, language } = input;
 
   if (language === "vi") {
@@ -259,9 +266,11 @@ Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
  * Used by the API layer to validate the requested duration:
  * a scene can never be longer than MAX_SCENE_DURATION_MS.
  */
-export function templateSceneCount(template) {
+export function templateSceneCount(template, maxScenes) {
   const key = normalizeTemplate(template) ?? template;
-  return TEMPLATES[key]?.pattern.length ?? 0;
+  const n = TEMPLATES[key]?.pattern.length ?? 0;
+  if (!n || !maxScenes || maxScenes >= n) return n;
+  return maxScenes;
 }
 
 /**

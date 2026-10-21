@@ -14,28 +14,30 @@ Create a new video job.
 
 **Request body (Zod-validated, partial — every field has a default):**
 
-| Field            | Type          | Default              | Notes                                                                                                                                                                                                                                                                                         |
-| ---------------- | ------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `topic`          | string        | —                    | Free-text topic. Used when `presetScript` is omitted.                                                                                                                                                                                                                                         |
-| `presetScript`   | string (path) | —                    | Path to a hand-written `script.json` under the project. Skips the LLM step. Path must be inside the samples/ or scripts/ folder (validated by `isPathInside`).                                                                                                                                |
-| `template`       | enum          | `tech-explainer`     | `tech-explainer` \| `promo` \| `tutorial` — friendly aliases are accepted and folded onto these values (see [Template aliases](#template-aliases)).                                                                                                                                           |
-| `language`       | enum          | `vi`                 | `vi` \| `en`                                                                                                                                                                                                                                                                                  |
-| `voice`          | enum          | `vi-VN-HoaiMyNeural` | See [Voice enum](#voice-enum) below. Unknown values → HTTP 400.                                                                                                                                                                                                                               |
-| `duration`       | int (seconds) | 60                   | Target total length. Hint for the LLM, not a hard cap.                                                                                                                                                                                                                                        |
-| `fps`            | int           | 30                   | Frames per second for the deterministic render path.                                                                                                                                                                                                                                          |
-| `deterministic`  | bool          | `true`               | If `true`, the renderer drives the page via `window.__seek` and screenshots per frame (bit-for-bit reproducible for identical input). If `false`, uses Playwright `recordVideo` and webm → mp4 (faster on slow machines, but not reproducible). Overridable by env: `DETERMINISTIC_RENDER=0`. |
-| `brandColor`     | hex           | `#3B82F6`            | Injected as `--brand` CSS var in the template.                                                                                                                                                                                                                                                |
-| `accentColor`    | hex           | `#F59E0B`            | Injected as `--accent` CSS var.                                                                                                                                                                                                                                                               |
-| `fontFamily`     | string        | `Inter`              | Sets `body { font-family }`.                                                                                                                                                                                                                                                                  |
-| `outputFilename` | string        | `null`               | Optional. Must match `^[\w\- ]{1,80}$` — letters, digits, `_`, `-`, and spaces only, no path separators, no extension. The `.mp4` extension is appended server-side. Path traversal attempts → HTTP 400.                                                                                      |
-| `maxScenes`      | int 2-20      | 6                    | Cap on scene count when LLM generates the script.                                                                                                                                                                                                                                             |
-| `aiModel`        | string        | `default`            | Selects a configured LLM preset (see `backend/lib/llm-client.js`).                                                                                                                                                                                                                            |
+| Field            | Type          | Default              | Notes                                                                                                                                                                                                                                                                                            |
+| ---------------- | ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `topic`          | string        | —                    | Free-text topic. Used when `presetScript` is omitted.                                                                                                                                                                                                                                            |
+| `presetScript`   | string (path) | —                    | Path to a hand-written `script.json`. Skips the LLM step. **Must** be a `.json` file inside the repository's `samples/` directory (absolute paths, `..` traversal and other folders → HTTP 400).                                                                                                 |
+| `template`       | enum          | `tech-explainer`     | `tech-explainer` \| `promo` \| `tutorial` — friendly aliases are accepted and folded onto these values (see [Template aliases](#template-aliases)).                                                                                                                                              |
+| `language`       | enum          | `vi`                 | `vi` \| `en`                                                                                                                                                                                                                                                                                     |
+| `voice`          | enum          | `vi-VN-HoaiMyNeural` | See [Voice enum](#voice-enum) below. Unknown values → HTTP 400.                                                                                                                                                                                                                                  |
+| `duration`       | int (seconds) | 60                   | Target total length, 15–300 s. The duration is spread over the scenes and every scene is clamped to 0.5–30 s, so a request longer than `scenes × 30 s` → HTTP 400.                                                                                                                               |
+| `fps`            | int           | 30                   | Frames per second for the deterministic render path.                                                                                                                                                                                                                                             |
+| `deterministic`  | bool          | `true`               | If `true`, the renderer drives the page via `window.__seek` and screenshots per frame (bit-for-bit reproducible for identical input). If `false`, uses Playwright `recordVideo` and webm → mp4 (faster on slow machines, but not reproducible). Overridable by env: `DETERMINISTIC_RENDER=0`.    |
+| `brandColor`     | hex           | `#3B82F6`            | Injected as `--brand` CSS var in the template.                                                                                                                                                                                                                                                   |
+| `accentColor`    | hex           | `#F59E0B`            | Injected as `--accent` CSS var.                                                                                                                                                                                                                                                                  |
+| `fontFamily`     | enum          | `Inter`              | Sets `body { font-family }`. Whitelisted (the renderer ignores anything else): `Inter`, `Georgia`, `Roboto`, `Roboto Slab`, `system-ui`, `Arial`, `Helvetica`, `Verdana`, `Times New Roman`, `Segoe UI`, `JetBrains Mono`, `Fira Code`, `Consolas`, `Menlo`, `monospace`, `serif`, `sans-serif`. |
+| `resolution`     | enum          | `1080p`              | `480p` \| `720p` \| `1080p` \| `1440p` \| `2160p`.                                                                                                                                                                                                                                               |
+| `aspectRatio`    | enum          | `16:9`               | `16:9` \| `9:16` \| `1:1` \| `4:3`.                                                                                                                                                                                                                                                              |
+| `outputFilename` | string        | `null`               | Optional. Must match `^[\w\- ]{1,80}$` — letters, digits, `_`, `-`, and spaces only, no path separators, no extension. The `.mp4` extension is appended server-side. Path traversal attempts → HTTP 400.                                                                                         |
+| `maxScenes`      | int 2-20      | 6                    | Cap on the scene count. The template pattern is trimmed to this many scenes — the last scene (outro / CTA) is always kept.                                                                                                                                                                       |
 
-**Response 200:**
+**Response 202 (accepted):**
 
 ```json
 {
   "jobId": "abc123def",
+  "status": "queued",
   "statusUrl": "/api/status/abc123def",
   "downloadUrl": "/api/download/abc123def"
 }
@@ -45,11 +47,21 @@ Create a new video job.
 
 ```json
 {
-  "error": "validation_failed",
-  "details": [
-    { "path": "voice", "message": "Invalid enum value. Expected 'vi-VN-HoaiMyNeural' | ..." }
+  "error": "Validation failed",
+  "issues": [
+    {
+      "path": "voice",
+      "message": "Invalid enum value. Expected 'vi-VN-HoaiMyNeural' | ...",
+      "code": "invalid_enum_value"
+    }
   ]
 }
+```
+
+**Response 429 (rate limit):** every IP may start at most `RATE_LIMIT_JOBS` jobs per minute (default 3). The response carries `Retry-After` and `X-RateLimit-Limit` / `X-RateLimit-Remaining` headers.
+
+```json
+{ "error": "Too many render jobs — at most 3 per minute. Please retry shortly." }
 ```
 
 ---
@@ -58,49 +70,38 @@ Create a new video job.
 
 Streams job progress until the job is `complete` or `failed`. The stream closes after the terminal event.
 
+Every frame is a bare `data:` line — the event type lives in the JSON payload (`type`), not in an SSE `event:` field. The server sends a `:heartbeat` comment every 15 s so proxies keep the connection open.
+
 **Event types:**
 
-| Event           | Payload                                | When                                                                                                         |
-| --------------- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| `step-start`    | `{ step: 1, name: "script" }`          | A workflow step begins.                                                                                      |
-| `step-progress` | `{ step, percent: 0-100 }`             | Progress within a step.                                                                                      |
-| `step-done`     | `{ step, output }`                     | A step finished successfully.                                                                                |
-| `log`           | `{ message }`                          | Free-form log line (e.g. ffmpeg progress, TTS duration).                                                     |
-| `complete`      | `{ downloadUrl, duration, warnings? }` | Final event. `warnings` is an array — currently `["tts_failed:scene-N"]` if a TTS clip fell back to silence. |
-| `error`         | `{ message }`                          | Terminal failure. Stream closes after this.                                                                  |
+| `type`          | Payload                                                  | When                                                                                                         |
+| --------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `step-start`    | `{ step: "script"\|"tts"\|"render", name }`              | A workflow step begins. `step` is the step id, not a number.                                                 |
+| `step-progress` | `{ step, percent: 0-100 }`                               | Progress within a step.                                                                                      |
+| `step-done`     | `{ step, output, meta }`                                 | A step finished successfully.                                                                                |
+| `log`           | `{ message }`                                            | Free-form log line (e.g. ffmpeg progress, TTS duration).                                                     |
+| `complete`      | `{ filename, size, duration_ms, downloadUrl, warnings }` | Final event. `warnings` is an array — currently `["tts_failed:scene-N"]` if a TTS clip fell back to silence. |
+| `error`         | `{ message }`                                            | Terminal failure (the internal event type is `failed`). Stream closes after this.                            |
+| `expired`       | `{ message }`                                            | The job was garbage-collected before the client connected.                                                   |
 
 **Example stream:**
 
 ```
-event: step-start
-data: {"step":1,"name":"script"}
+data: {"type":"step-start","step":"script","name":"Step 1: Script"}
 
-event: step-progress
-data: {"step":1,"percent":50}
+data: {"type":"step-progress","step":"script","percent":50}
 
-event: step-done
-data: {"step":1,"output":{"scenes":5}}
+data: {"type":"step-done","step":"script","output":"script.json"}
 
-event: step-start
-data: {"step":2,"name":"tts"}
+data: {"type":"step-start","step":"tts","name":"Step 2: TTS"}
 
-event: log
-data: {"message":"TTS: scene-1 = 4.32s"}
+data: {"type":"log","message":"TTS: scene-1 = 4.32s"}
 
-event: step-done
-data: {"step":2,"output":{}}
+data: {"type":"step-start","step":"render","name":"Step 4: Render MP4"}
 
-event: step-start
-data: {"step":4,"name":"render"}
+data: {"type":"log","message":"Deterministic: 285 frames @ 30fps (9.5s)"}
 
-event: log
-data: {"message":"Deterministic: 285 frames @ 30fps (9.5s)"}
-
-event: log
-data: {"message":"✓ Final MP4: how-https-works.mp4 (3678.5 KB)"}
-
-event: complete
-data: {"downloadUrl":"/api/download/abc123def","duration":9.5}
+data: {"type":"complete","filename":"how-https-works.mp4","size":3763712,"duration_ms":9500,"downloadUrl":"/api/download/abc123def","warnings":[]}
 ```
 
 ---
@@ -111,9 +112,21 @@ Returns the rendered MP4 as `video/mp4` with `Content-Disposition: attachment; f
 
 ---
 
+### `GET /api/status/:jobId/snapshot`
+
+The same information as the SSE stream, as plain JSON — useful for polling. Returns `{ jobId, status, currentStep, input, events, output, error, createdAt, startedAt, completedAt }`. `output` is `null` until the render finished.
+
+---
+
+### `GET /api/jobs` (admin)
+
+Job statistics. Disabled unless `ADMIN_TOKEN` is set — without it the endpoint answers `404`. Send the token as `X-Admin-Token` header (or `?token=`).
+
+---
+
 ### `GET /health`
 
-Health check — returns `{ status: "ok", version: "0.1.0" }`.
+Health check — returns `{ status: "ok", phase: "idle"|"rendering", version: "0.1.0", uptime }`.
 
 ---
 
@@ -137,21 +150,22 @@ An unknown name is still rejected with HTTP 400.
 
 Validated against a Zod enum per language. Unknown values are rejected with HTTP 400 before the job is queued.
 
-| Language | Voices                                                               |
-| -------- | -------------------------------------------------------------------- |
-| `vi`     | `vi-VN-HoaiMyNeural` (default), `vi-VN-NamMinhNeural`                |
-| `en`     | `en-US-AriaNeural` (default), `en-US-GuyNeural`, `en-US-JennyNeural` |
+| Language | Voices                                                                                    |
+| -------- | ----------------------------------------------------------------------------------------- |
+| `vi`     | `vi-VN-HoaiMyNeural` (default), `vi-VN-NamMinhNeural`                                     |
+| `en`     | `en-US-AriaNeural` (default), `en-US-GuyNeural`, `en-US-JennyNeural`, `en-US-DavisNeural` |
 
 ---
 
 ## Error codes
 
-| Code | Meaning                                          |
-| ---- | ------------------------------------------------ |
-| 400  | Validation failed (Zod schema or path-traversal) |
-| 404  | Job not found or already downloaded              |
-| 500  | Internal error (workflow crash, ffmpeg failure)  |
-| 503  | Job queue full (single-process, concurrency=1)   |
+| Code | Meaning                                                                        |
+| ---- | ------------------------------------------------------------------------------ |
+| 400  | Validation failed (Zod schema, path-traversal, duration over the scene budget) |
+| 404  | Job not found or already downloaded                                            |
+| 429  | Rate limit — too many jobs from this IP                                        |
+| 500  | Internal error (workflow crash, ffmpeg failure)                                |
+| 503  | Job queue full (single-process, concurrency=1)                                 |
 
 ---
 
@@ -168,4 +182,6 @@ Validated against a Zod enum per language. Unknown values are rejected with HTTP
 | `brandColor`    | `#3B82F6`            | Blue-500 (neutral, professional)              |
 | `accentColor`   | `#F59E0B`            | Amber-500 (warm)                              |
 | `fontFamily`    | `Inter`              | Open-source, multilingual                     |
+| `resolution`    | `1080p`              | Frame size of the render                      |
+| `aspectRatio`   | `16:9`               | —                                             |
 | `maxScenes`     | `6`                  | Keeps videos tight                            |

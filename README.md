@@ -78,13 +78,13 @@ The rendering stack is deliberately small and boring:
 
 ## Requirements
 
-| Requirement         | Version                   | Notes                                                                                                                                                                     |
-| ------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Node.js             | **≥ 20** (22 recommended) | The npm scripts load `.env` with `--env-file-if-exists`, which needs **Node ≥ 22.9**. On Node 20 start the server directly: `node backend/server.js`. CI runs on Node 22. |
-| Python              | 3.9+                      | Only needed for the TTS step.                                                                                                                                             |
-| Edge-TTS            | latest                    | `pip install edge-tts` — or `pipx install edge-tts` if you prefer isolated installs.                                                                                      |
-| Playwright Chromium | bundled                   | Installed by `npm run setup` (~150 MB, one time).                                                                                                                         |
-| `.env`              | —                         | **Optional.** The server runs without it; see [Environment variables](#environment-variables).                                                                            |
+| Requirement         | Version    | Notes                                                                                                                                                          |
+| ------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Node.js             | **≥ 22.9** | The npm scripts load `.env` with `--env-file-if-exists`, which needs **Node ≥ 22.9**. `package.json` pins the same floor (`engines.node`). CI runs on Node 22. |
+| Python              | 3.9+       | Only needed for the TTS step.                                                                                                                                  |
+| Edge-TTS            | latest     | `pip install edge-tts` — or `pipx install edge-tts` if you prefer isolated installs.                                                                           |
+| Playwright Chromium | bundled    | Installed by `npm run setup` (~150 MB, one time).                                                                                                              |
+| `.env`              | —          | **Optional.** The server runs without it; see [Environment variables](#environment-variables).                                                                 |
 
 Edge-TTS is the only optional piece: without it the TTS step writes silent audio (`anullsrc`), the video still renders, and the job reports a `tts_failed:scene-N` warning.
 
@@ -119,6 +119,12 @@ All variables are optional — the defaults shown below are what the server uses
 | Variable                | Default                     | Effect                                                                                                   |
 | ----------------------- | --------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `PORT`                  | `3000`                      | Fastify listen port.                                                                                     |
+| `HOST`                  | `127.0.0.1`                 | Fastify listen address — set `0.0.0.0` to expose the server on the LAN.                                  |
+| `LOG_LEVEL`             | `info`                      | Pino log level.                                                                                          |
+| `CORS_ORIGIN`           | — (reflect)                 | Comma-separated list of allowed browser origins. Unset = every origin is allowed.                        |
+| `RATE_LIMIT_JOBS`       | `3`                         | How many `POST /api/generate` calls one IP may make per minute. Over the limit → HTTP 429.               |
+| `ADMIN_TOKEN`           | — (disabled)                | Enables `GET /api/jobs` (job statistics). Send it as `X-Admin-Token`. Unset = the endpoint is 404.       |
+| `RENDER_FPS`            | `30`                        | Default frame rate for the deterministic renderer.                                                       |
 | `LLM_API_KEY`           | —                           | If set, step 1 rewrites the scenes with an LLM. If unset, the template fallback is used.                 |
 | `LLM_BASE_URL`          | `https://api.openai.com/v1` | Any OpenAI-compatible `/chat/completions` endpoint (OpenAI, DashScope compatible-mode, Ollama, vLLM, …). |
 | `LLM_MODEL`             | `gpt-4o-mini`               | Model id passed to the endpoint.                                                                         |
@@ -173,7 +179,8 @@ curl -X POST http://localhost:3000/api/generate \
   -d '{
     "presetScript": "samples/01-how-https-works/script.json",
     "template": "tech-explainer",
-    "language": "vi"
+    "language": "vi",
+    "voice": "vi-VN-HoaiMyNeural"
   }'
 
 # Response
@@ -251,7 +258,7 @@ fine-video-as-code/
 ├── backend/                 # Backend API + workflow orchestrator
 │   ├── server.js            # Fastify entry, port 3000
 │   ├── routes/              # generate, status (SSE), download
-│   ├── lib/                 # schema, design-system, job-store, job-queue, text
+│   ├── lib/                 # schema, design-system, job-store, job-queue, rate-limit, voice, paths, text
 │   ├── workflow/            # step1-script, step2-tts, step4-render
 │   └── templates/           # 3 HTML templates + shared engine
 │       ├── _engine.js       # window.fineVideoEngine — brand CSS vars, __seek, visual_cues
@@ -259,7 +266,8 @@ fine-video-as-code/
 │       ├── tech-explainer.html
 │       ├── promo.html
 │       └── tutorial.html
-├── samples/                 # 3 demo videos (rendered, ~6.1 MB total)
+├── samples/                 # 4 demo videos (rendered, ~8 MB total)
+│   ├── 00-engine-smoke/     # 3-scene engine smoke test
 │   ├── 01-how-https-works/
 │   ├── 02-a-day-in-code/
 │   └── 03-git-5-commands/
@@ -310,6 +318,7 @@ CI runs the same commands on every push and pull request: see [`.github/workflow
 | **M8**    | Git history cleanup (rewrite commit messages)                                                           | ✅     |
 | **M9**    | Audio/video sync fix + visual cues + deterministic render                                               | ✅     |
 | **M10**   | Phosphor icons + per-template enrichment (icon / image / chart / decoration cues) + re-rendered samples | ✅     |
+| **M11**   | Layout engine wave — grid layout, auto-fit, word-level karaoke, backend hardening, input whitelist      | ✅     |
 
 The current upgrade wave is tracked in [`CHANGELOG.md`](CHANGELOG.md) under _Unreleased_.
 
@@ -319,10 +328,11 @@ The current upgrade wave is tracked in [`CHANGELOG.md`](CHANGELOG.md) under _Unr
 
 - **Chromium is a one-time ~150 MB download** — run `npm run setup` to fetch it. It is cached afterwards.
 - **TTS is silent if `edge-tts` is missing** — the server falls back to a silent MP3 (`anullsrc`) and emits a `tts_failed:scene-N` warning in the SSE `complete` event. The video still renders, just without narration.
-- **No background music yet** — the form has a checkbox, but there is no implementation.
+- **No background music** — the engine muxes the narration only. A music bed would need a licensed track and a mixing stage.
 - **Single-process queue** — concurrency=1; one video at a time. Swap to BullMQ for scale.
-- **No auth** — intended for local use. Add a reverse proxy for production.
-- **Voice list is curated, not open** — voices are validated against a per-language Zod enum (`vi-VN-HoaiMyNeural`, `vi-VN-NamMinhNeural`; `en-US-AriaNeural`, `en-US-GuyNeural`, `en-US-JennyNeural`). Unknown voices return HTTP 400.
+- **No auth on the render API** — intended for local use. The admin endpoint (`GET /api/jobs`) is gated by `ADMIN_TOKEN`; everything else is open. Put a reverse proxy in front for production.
+- **Voice list is curated, not open** — voices are validated against a per-language Zod enum (`vi-VN-HoaiMyNeural`, `vi-VN-NamMinhNeural`; `en-US-AriaNeural`, `en-US-GuyNeural`, `en-US-JennyNeural`, `en-US-DavisNeural`). Unknown voices return HTTP 400.
+- **Frame budget** — the deterministic renderer writes at most 3000 PNG frames per video. Longer videos are rendered at a lower frame rate (never below 20 fps) instead of failing.
 
 ---
 

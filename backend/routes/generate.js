@@ -47,7 +47,7 @@ export default async function generateRoutes(fastify) {
     // used to fail deep inside step 1 with a Zod error.
     const sceneCount = input.presetScript
       ? MAX_SCENES
-      : templateSceneCount(input.template);
+      : templateSceneCount(input.template, input.maxScenes);
     const maxTotalMs = sceneCount * MAX_SCENE_DURATION_MS;
     const requestedMs = input.duration * 1000;
     if (sceneCount > 0 && requestedMs > maxTotalMs) {
@@ -83,7 +83,7 @@ export default async function generateRoutes(fastify) {
   });
 
   // Helpful: list voices per language
-  fastify.get("/voices", async (req, reply) => {
+  fastify.get("/voices", async (req) => {
     const lang = req.query.language;
     if (lang && VOICE_PRESETS[lang]) {
       return { language: lang, voices: VOICE_PRESETS[lang] };

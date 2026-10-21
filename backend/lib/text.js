@@ -32,8 +32,13 @@ export function squish(text) {
 export function deriveHeading(voiceover, language = "vi") {
   const s = squish(voiceover);
   if (!s) return "";
-  const firstSentence = s.split(/(?<=[.!?])\s+/)[0] || s;
-  const cleaned = firstSentence.replace(/[?.,!]+$/g, "").trim();
+  // Vietnamese sentences often run on without a full stop, so the
+  // first clause is a better title than the first sentence.
+  const firstChunk =
+    language === "vi"
+      ? s.split(/(?<=[.!?])\s+|,\s+/)[0] || s
+      : s.split(/(?<=[.!?])\s+/)[0] || s;
+  const cleaned = firstChunk.replace(/[?.,!]+$/g, "").trim();
   const words = cleaned.split(/\s+/);
   if (words.length <= 8) return words.join(" ");
   return truncate(words.slice(0, 8).join(" "), 48, "").replace(/[,;:]$/, "");
@@ -44,7 +49,7 @@ export function deriveHeading(voiceover, language = "vi") {
 export function deriveCueLabel(voiceover, language = "vi") {
   const s = squish(voiceover);
   if (!s) return "";
-  const words = s.split(/\s+/).slice(0, 6).join(" ");
+  const words = s.split(/\s+/).slice(0, language === "vi" ? 6 : 8).join(" ");
   return truncate(words, 60);
 }
 
