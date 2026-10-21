@@ -109,6 +109,25 @@ test("duration: out of range", () => {
   );
 });
 
+test("topic: optional when a presetScript is supplied", () => {
+  const base = {
+    template: "tech-explainer",
+    voice: "vi-VN-HoaiMyNeural",
+    duration: 30,
+  };
+  // Without a preset the topic is still mandatory.
+  assert.throws(() => GenerateInputSchema.parse({ ...base, topic: "" }), /topic/);
+  assert.throws(() => GenerateInputSchema.parse(base), /topic/);
+  // With a preset the topic may be empty — the script carries it.
+  const out = GenerateInputSchema.parse({
+    ...base,
+    topic: "",
+    presetScript: "samples/01-how-https-works/script.json",
+  });
+  assert.equal(out.topic, "");
+  assert.equal(out.presetScript, "samples/01-how-https-works/script.json");
+});
+
 test("SceneSchema requires voiceover, duration_ms, id", () => {
   const good = SceneSchema.parse({
     id: "scene-1",

@@ -76,6 +76,62 @@ $("#duration").addEventListener("input", (e) => {
   $("#duration-val").textContent = e.target.value;
 });
 
+// ─── Preset scripts ─────────────────────────────────────
+//
+// The curated scripts in `samples/` come with their own template,
+// language and voice. Picking one overrides those fields — a
+// Vietnamese script narrated by an English voice is a bug waiting
+// to happen.
+let PRESETS = [];
+
+async function loadPresets() {
+  const sel = $("#preset-script");
+  if (!sel) return;
+  try {
+    const r = await fetch("/api/presets");
+    if (!r.ok) return;
+    const data = await r.json();
+    PRESETS = data.presets || [];
+    for (const p of PRESETS) {
+      const opt = document.createElement("option");
+      opt.value = p.path;
+      opt.textContent = `${p.id} · ${p.template || "?"} · ${p.scenes} scenes · ${Math.round((p.duration_ms || 0) / 1000)}s`;
+      sel.appendChild(opt);
+    }
+  } catch (e) {
+    // No catalogue — the form still works with a topic.
+  }
+}
+
+function applyPreset(path) {
+  const topic = $("#topic");
+  const preset = PRESETS.find((p) => p.path === path);
+  if (!preset) {
+    topic.required = true;
+    return;
+  }
+  topic.required = false;
+  topic.placeholder = "Using the preset script — the topic is ignored";
+  if (preset.template) $("[name=template]").value = preset.template;
+  if (preset.language) {
+    $("#language").value = preset.language;
+    updateVoices();
+  }
+  if (preset.voice) $("#voice").value = preset.voice;
+  const secs = Math.round((preset.duration_ms || 0) / 1000);
+  if (secs >= 15) {
+    const slider = $("#duration");
+    slider.value = String(Math.min(180, secs));
+    $("#duration-val").textContent = slider.value;
+  }
+}
+
+const presetSel = $("#preset-script");
+if (presetSel) {
+  presetSel.addEventListener("change", (e) => applyPreset(e.target.value));
+}
+loadPresets();
+
 // ─── State management ───────────────────────────────────
 function showView(name) {
   for (const v of ["form-view", "progress-view", "result-view", "error-view"]) {
@@ -134,6 +190,8 @@ $("#gen-form").addEventListener("submit", async (e) => {
   data.maxScenes = Number(data.maxScenes);
   // Remove empty filename
   if (!data.outputFilename) delete data.outputFilename;
+  // An empty preset means "no preset" — the schema rejects "".
+  if (!data.presetScript) delete data.presetScript;
 
   $("#submit-btn").disabled = true;
   $("#submit-btn").textContent = "Submitting…";

@@ -6,6 +6,7 @@ import { GenerateInputSchema } from "../lib/schema.js";
 import { jobStore } from "../lib/job-store.js";
 import { jobQueue } from "../lib/job-queue.js";
 import { validateVoice, VOICE_PRESETS } from "../lib/voice.js";
+import { listPresets } from "../lib/presets.js";
 import {
   templateSceneCount,
   MAX_SCENE_DURATION_MS,
@@ -89,5 +90,11 @@ export default async function generateRoutes(fastify) {
       return { language: lang, voices: VOICE_PRESETS[lang] };
     }
     return { voices: VOICE_PRESETS };
+  });
+
+  // The curated sample scripts — the portal offers them in a
+  // dropdown instead of asking the user to type a path.
+  fastify.get("/presets", async () => {
+    return { presets: await listPresets() };
   });
 }

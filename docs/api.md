@@ -16,7 +16,7 @@ Create a new video job.
 
 | Field            | Type          | Default              | Notes                                                                                                                                                                                                                                                                                            |
 | ---------------- | ------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `topic`          | string        | —                    | Free-text topic. Used when `presetScript` is omitted.                                                                                                                                                                                                                                            |
+| `topic`          | string        | —                    | Free-text topic. Used when `presetScript` is omitted — with a preset the field may be empty.                                                                                                                                                                                                     |
 | `presetScript`   | string (path) | —                    | Path to a hand-written `script.json`. Skips the LLM step. **Must** be a `.json` file inside the repository's `samples/` directory (absolute paths, `..` traversal and other folders → HTTP 400).                                                                                                 |
 | `template`       | enum          | `tech-explainer`     | `tech-explainer` \| `promo` \| `tutorial` — friendly aliases are accepted and folded onto these values (see [Template aliases](#template-aliases)).                                                                                                                                              |
 | `language`       | enum          | `vi`                 | `vi` \| `en`                                                                                                                                                                                                                                                                                     |
@@ -121,6 +121,35 @@ The same information as the SSE stream, as plain JSON — useful for polling. Re
 ### `GET /api/jobs` (admin)
 
 Job statistics. Disabled unless `ADMIN_TOKEN` is set — without it the endpoint answers `404`. Send the token as `X-Admin-Token` header (or `?token=`).
+
+---
+
+### `GET /api/voices`
+
+The voice whitelist per language: `{ "voices": { "vi": [...], "en": [...] } }`. Pass `?language=vi` to get one language only.
+
+---
+
+### `GET /api/presets`
+
+The curated sample scripts in `samples/`, ready to be sent as `presetScript`:
+
+```json
+{
+  "presets": [
+    {
+      "id": "01-how-https-works",
+      "path": "samples/01-how-https-works/script.json",
+      "template": "tech-explainer",
+      "language": "vi",
+      "voice": "vi-VN-HoaiMyNeural",
+      "scenes": 7,
+      "duration_ms": 96000,
+      "topic": "How HTTPS Works"
+    }
+  ]
+}
+```
 
 ---
 

@@ -10,23 +10,36 @@ export async function cleanupWorkDir(jobId) {
   await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
 }
 
-export async function cleanupAllExpiredJobs() {
+// A render keeps writing into its workdir (frames, audio, the
+// final MP4), so a directory that was touched recently is still in
+// use. Only directories that have been idle for longer than the
+// grace period are removed — otherwise stopping one server instance
+// wipes the frames of a render that another process (the CLI, a
+// second instance) is still writing, and the encode fails with
+// "Could find no file with path frame-%05d.png".
+const IDLE_GRACE_MS = 2 * 60 * 60 * 1000; // 2 h
+
+export async function cleanupAllExpiredJobs({
+  root = JOBS_ROOT,
+  graceMs = IDLE_GRACE_MS,
+} = {}) {
   // Used at server shutdown — walk tmp/jobs and remove anything
-  // that isn't a known live job.
+  // that is not a recent (in-use) directory.
   let entries = [];
   try {
-    entries = await fs.readdir(JOBS_ROOT);
+    entries = await fs.readdir(root);
   } catch {
     return 0;
   }
   let removed = 0;
   for (const entry of entries) {
-    const workDir = path.join(JOBS_ROOT, entry);
+    const workDir = path.join(root, entry);
     const stat = await fs.stat(workDir).catch(() => null);
-    if (stat?.isDirectory()) {
-      await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
-      removed++;
-    }
+    if (!stat?.isDirectory()) continue;
+    // Freshly touched → a render may still be writing here.
+    if (Date.now() - stat.mtimeMs < graceMs) continue;
+    await fs.rm(workDir, { recursive: true, force: true }).catch(() => {});
+    removed++;
   }
   return removed;
 }

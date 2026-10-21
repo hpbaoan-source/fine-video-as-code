@@ -19,56 +19,70 @@ export const AspectEnum = z.enum(["16:9", "9:16", "1:1", "4:3"]);
 export const ResolutionEnum = z.enum(["480p", "720p", "1080p", "1440p", "2160p"]);
 
 // ─── Form input schema (POST /api/generate) ────────────────
-export const GenerateInputSchema = z.object({
-  topic: z.string().min(3, "topic must be at least 3 chars").max(500),
-  template: TemplateEnum,
-  language: LanguageEnum.default("vi"),
-  voice: z.string().min(1).max(80), // validated against per-language whitelist in step2-tts.js
-  duration: z.number().int().min(15).max(300), // seconds
-  fps: z.number().int().min(15).max(60).default(30),
-  // Deterministic renders the same file for the same script. The
-  // portal does not expose it; the CLI and the tests do.
-  deterministic: z.boolean().optional(),
-  resolution: ResolutionEnum.default("1080p"),
-  aspectRatio: AspectEnum.default("16:9"),
-  brandColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "must be #rrggbb")
-    .default("#3B82F6"),
-  accentColor: z
-    .string()
-    .regex(/^#[0-9a-fA-F]{6}$/, "must be #rrggbb")
-    .default("#F59E0B"),
-  fontFamily: z
-    .enum([
-      "Inter",
-      "Georgia",
-      "Roboto",
-      "Roboto Slab",
-      "system-ui",
-      "Arial",
-      "Helvetica",
-      "Verdana",
-      "Times New Roman",
-      "Segoe UI",
-      "JetBrains Mono",
-      "Fira Code",
-      "Consolas",
-      "Menlo",
-      "monospace",
-      "serif",
-      "sans-serif",
-    ])
-    .default("Inter"),
-  maxScenes: z.number().int().min(2).max(20).default(6),
-  presetScript: z.string().min(1).max(500).optional(),
+//
+// The topic is only mandatory when the request has no
+// `presetScript` — a curated script carries its own subject, so
+// forcing the caller to invent a topic was pure friction.
+export const GenerateInputSchema = z
+  .object({
+    topic: z.string().max(500).default(""),
+    template: TemplateEnum,
+    language: LanguageEnum.default("vi"),
+    voice: z.string().min(1).max(80), // validated against per-language whitelist in step2-tts.js
+    duration: z.number().int().min(15).max(300), // seconds
+    fps: z.number().int().min(15).max(60).default(30),
+    // Deterministic renders the same file for the same script. The
+    // portal does not expose it; the CLI and the tests do.
+    deterministic: z.boolean().optional(),
+    resolution: ResolutionEnum.default("1080p"),
+    aspectRatio: AspectEnum.default("16:9"),
+    brandColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, "must be #rrggbb")
+      .default("#3B82F6"),
+    accentColor: z
+      .string()
+      .regex(/^#[0-9a-fA-F]{6}$/, "must be #rrggbb")
+      .default("#F59E0B"),
+    fontFamily: z
+      .enum([
+        "Inter",
+        "Georgia",
+        "Roboto",
+        "Roboto Slab",
+        "system-ui",
+        "Arial",
+        "Helvetica",
+        "Verdana",
+        "Times New Roman",
+        "Segoe UI",
+        "JetBrains Mono",
+        "Fira Code",
+        "Consolas",
+        "Menlo",
+        "monospace",
+        "serif",
+        "sans-serif",
+      ])
+      .default("Inter"),
+    maxScenes: z.number().int().min(2).max(20).default(6),
+    presetScript: z.string().min(1).max(500).optional(),
   outputFilename: z
     .string()
     .min(1)
     .max(80)
     .regex(/^[\w\- ]{1,80}$/, "outputFilename may only contain letters, digits, underscore, hyphen, and spaces")
     .optional(),
-});
+  })
+  .superRefine((val, ctx) => {
+    if (!val.presetScript && val.topic.trim().length < 3) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["topic"],
+        message: "topic must be at least 3 chars (or provide a presetScript)",
+      });
+    }
+  });
 
 // ─── Scene schema (Step 1 output) ──────────────────────────
 export const VisualCueSchema = z.object({
