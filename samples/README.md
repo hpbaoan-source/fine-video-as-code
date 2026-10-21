@@ -1,14 +1,18 @@
 # Demo samples
 
-3 video mẫu render sẵn — dùng để đánh giá nhanh chất lượng output mà không cần cài đặt.
+4 video mẫu render sẵn — dùng để đánh giá nhanh chất lượng output mà không cần cài đặt.
 
 | # | Tên | Template | Thời lượng | Size |
 |---|-----|----------|------------|------|
-| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 87s | 1.5 MB |
-| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 61s | 1.2 MB |
-| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 102s | 0.7 MB |
+| 0 | [Engine smoke test](00-engine-smoke/video.mp4) | Tech Explainer | 15s | 0.8 MB |
+| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 96s | 2.0 MB |
+| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 70s | 2.0 MB |
+| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 111s | 2.1 MB |
 
-**Total:** 3 video files (~3.4 MB), 3 script.json (pre-written Vietnamese).
+**Total:** 4 video files (~7 MB), 4 script.json (pre-written Vietnamese).
+
+Sample 00 là smoke test của engine: 3 scene ngắn, render trong ~3 phút — dùng để
+kiểm tra template sau khi sửa mà không phải chờ cả video dài.
 
 ## What's new (v2)
 
@@ -23,15 +27,23 @@ These samples replace the earlier v1 set (cloud-computing, SaaS promo, Jira tuto
 Each sample was rendered end-to-end via `POST /api/generate` with a `presetScript` field pointing to the pre-written `script.json`. The pipeline runs:
 
 1. **Step 1 (scripting)** — loads `presetScript` instead of running LLM/template
-2. **Step 2 (TTS)** — Python `edge-tts` generates per-scene audio (concatenated, ~5-10s per scene)
-3. **Step 3 (assets)** — no-op (templates generate visuals dynamically; PNGs not needed)
-4. **Step 4 (render)** — Playwright + headless Chromium opens the template HTML, records 1920×1080 webm, ffmpeg-static muxes with audio → final MP4
+2. **Step 2 (TTS)** — Python `edge-tts` generates per-scene audio (concatenated, ~5-18s per scene)
+3. **Step 4 (render)** — Playwright + headless Chromium opens the template HTML; the deterministic path screenshots one frame at a time (1920×1080 PNG → ffmpeg → MP4), ffmpeg-static muxes the audio track
 
-Render time on Ryzen 5 7520U: ~2-4 minutes per video. The first render downloads Chromium (~50MB) and takes longer; subsequent renders are faster.
+Render time on this machine: ~3 min for the 15 s smoke test, ~10–15 min per demo video
+(one screenshot per frame). The first render downloads Chromium (~150 MB) and takes
+longer; subsequent renders are faster.
 
 ## Re-render
 
-Either via the form (use the "Advanced options" to point at a presetScript — currently requires manual API call) or via curl:
+Either via the CLI:
+
+```bash
+npm run render-sample -- 01-how-https-works
+npm run render-batch -- 01-how-https-works 02-a-day-in-code
+```
+
+…or via curl:
 
 ```bash
 curl -X POST http://localhost:3000/api/generate \

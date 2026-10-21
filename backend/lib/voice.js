@@ -7,10 +7,10 @@
 // then rejected half-way through the workflow. Both now call
 // `validateVoice()` below.
 //
-// NOTE: `lib/schema.js` still exports its own `VoicePresets`
-// map. It is missing `en-US-DavisNeural`, which this module
-// accepts. schema.js is owned by another workstream — the
-// change to make there is documented in the final report.
+// NOTE: `lib/schema.js` owns the `VoicePresets` map — this module
+// only re-exports it under a friendlier name and adds the
+// validation. Keep the two in sync: the list below is the one the
+// API and the TTS step agree on.
 // ──────────────────────────────────────────────────────────────
 
 import { VoicePresets } from "./schema.js";
@@ -18,7 +18,7 @@ import { VoicePresets } from "./schema.js";
 // Canonical list of voices, keyed by language.
 export const VOICE_PRESETS = {
   vi: [...(VoicePresets.vi || [])],
-  en: [...new Set([...(VoicePresets.en || []), "en-US-DavisNeural"])],
+  en: [...(VoicePresets.en || [])],
 };
 
 // Languages the pipeline can synthesize.

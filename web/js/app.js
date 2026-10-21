@@ -26,31 +26,50 @@ async function checkHealth() {
 checkHealth();
 
 // ─── Voice dropdown ─────────────────────────────────────
-const VOICES = {
-  vi: [
-    { id: "vi-VN-HoaiMyNeural", label: "Hoài My (female)" },
-    { id: "vi-VN-NamMinhNeural", label: "Nam Minh (male)" },
-  ],
-  en: [
-    { id: "en-US-AriaNeural", label: "Aria (female, US)" },
-    { id: "en-US-GuyNeural", label: "Guy (male, US)" },
-    { id: "en-US-JennyNeural", label: "Jenny (female, US)" },
-  ],
+//
+// The list comes from the server (`GET /api/voices`) so the form can
+// never offer a voice the backend rejects. The labels below are only
+// cosmetics — an unknown id falls back to the raw id.
+const VOICE_LABELS = {
+  "vi-VN-HoaiMyNeural": "Hoài My (female)",
+  "vi-VN-NamMinhNeural": "Nam Minh (male)",
+  "en-US-AriaNeural": "Aria (female, US)",
+  "en-US-GuyNeural": "Guy (male, US)",
+  "en-US-JennyNeural": "Jenny (female, US)",
+  "en-US-DavisNeural": "Davis (male, US)",
 };
+let VOICES = { vi: [], en: [] };
+
+async function loadVoices() {
+  try {
+    const r = await fetch("/api/voices");
+    if (!r.ok) return;
+    const data = await r.json();
+    const list = data.voices || data;
+    if (list && list.vi && list.en) {
+      VOICES = { vi: list.vi, en: list.en };
+      updateVoices();
+    }
+  } catch (e) {
+    // Offline / old server — the dropdown simply stays empty and the
+    // user picks nothing; the request then fails with a clear 400.
+  }
+}
 
 function updateVoices() {
   const lang = $("#language").value;
   const voiceSel = $("#voice");
   voiceSel.innerHTML = "";
-  for (const v of VOICES[lang] || []) {
+  for (const id of VOICES[lang] || []) {
     const opt = document.createElement("option");
-    opt.value = v.id;
-    opt.textContent = v.label;
+    opt.value = id;
+    opt.textContent = VOICE_LABELS[id] || id;
     voiceSel.appendChild(opt);
   }
 }
 $("#language").addEventListener("change", updateVoices);
 updateVoices();
+loadVoices();
 
 // ─── Duration label ─────────────────────────────────────
 $("#duration").addEventListener("input", (e) => {
@@ -65,14 +84,14 @@ function showView(name) {
 }
 
 function resetSteps() {
-  for (const step of $$(".step")) {
-    step.querySelector(".step-icon").textContent = step.dataset.step === "script" ? "1"
-      : step.dataset.step === "tts" ? "2" : step.dataset.step === "assets" ? "3" : "4";
+  const steps = $$(".step");
+  steps.forEach((step, i) => {
+    step.querySelector(".step-icon").textContent = String(i + 1);
     step.querySelector(".step-icon").className = "step-icon w-6 h-6 rounded-full border-2 border-gray-700 flex items-center justify-center text-xs";
     step.querySelector(".step-bar").style.width = "0%";
     step.querySelector(".step-log").textContent = "";
     step.querySelector(".step-pct").textContent = "";
-  }
+  });
   $("#log-panel").innerHTML = "";
 }
 
@@ -185,10 +204,9 @@ function streamJob(jobId) {
         }
         break;
       case "complete":
-        setStepStatus("script", "done", null, 100);
-        setStepStatus("tts", "done", null, 100);
-        setStepStatus("assets", "done", null, 100);
-        setStepStatus("render", "done", null, 100);
+        for (const step of $$(".step")) {
+          setStepStatus(step.dataset.step, "done", null, 100);
+        }
         appendLog(`✅ complete: ${ev.filename} (${(ev.size / 1024).toFixed(1)} KB)`);
         $("#result-meta").textContent = `${ev.filename} · ${(ev.size / 1024 / 1024).toFixed(2)} MB · ${(ev.duration_ms / 1000).toFixed(0)}s`;
         $("#download-link").href = ev.downloadUrl;
