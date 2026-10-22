@@ -62,17 +62,17 @@ The HUD (`● TOPIC` top-left, large blue `02 / 07` scene indicator top-right) a
 
 ---
 
-## Why this stack
+## How a video gets made
 
-The rendering stack is deliberately small and boring:
+Every MP4 this repo produces comes out of the same three local tools, wired together by one small workflow:
 
-**Playwright + headless Chromium + vanilla HTML/CSS templates + Edge-TTS + ffmpeg-static**
+- **Playwright + headless Chromium** draws the frames. A scene is a 1920×1080 HTML template; the renderer seeks to a timestamp, screenshots one frame and repeats. Nothing is captured live, so the same script always yields the same pixels.
+- **Edge-TTS** narrates the script. Each scene gets its own MP3, padded to the scene's `duration_ms`, so picture and sound stay locked together.
+- **ffmpeg-static** muxes the PNG frames and the narration into the final MP4. The binary ships with the repo — no system ffmpeg, no Docker, no setup.
 
-- **Everything is MIT-friendly.** Playwright is Apache 2.0 (MIT-compatible), ffmpeg-static ships an LGPL open-source build, Edge-TTS is MIT, and the templates are plain HTML — the whole repo stays publishable under one permissive licence, with no per-render or per-seat licence fees.
-- **No heavy bundler.** The templates are plain HTML + CSS + a small inline JS scheduler. There is no bundler, no transpiler and no build step between editing a template and rendering it — open `backend/templates/promo.html`, change a colour, re-render.
-- **Fast renders.** Chromium does the actual work: the deterministic path screenshots one frame at a time and pipes the PNGs straight into ffmpeg, so the cost scales with the video length and the frames are bit-for-bit reproducible.
-- **Easy to author.** A template is a 1920×1080 HTML file that a designer, an engineer or an LLM can edit with any text editor.
-- **No vendor lock-in.** ffmpeg comes from `ffmpeg-static` (no system install), TTS comes from the Python `edge-tts` CLI (no API key, no account), and the browser comes from Playwright (one `npm run setup`).
+The templates are plain HTML + CSS with a small inline JS scheduler (`backend/templates/_engine.js`): layout, timing and motion live in the shared engine, and each template only decides colours and type. There is no bundler and no build step between editing a template and rendering it — open `backend/templates/tech-explainer.html`, change a colour, re-render.
+
+Every piece is permissively licensed (Playwright Apache 2.0, Edge-TTS MIT, ffmpeg-static LGPL, templates MIT), so the whole project stays under one licence and costs nothing per render.
 
 ---
 
@@ -201,33 +201,37 @@ Full spec: [`docs/api.md`](docs/api.md)
 
 ## Demo samples
 
-Three real MP4s rendered end-to-end via the live server, committed to the repo. All three use Vietnamese voiceover (`vi-VN-HoaiMyNeural`), brand color `#3B82F6`, and the deterministic render path.
+Four real MP4s rendered end-to-end through the live server and committed to the repo. All four use Vietnamese voiceover (`vi-VN-HoaiMyNeural`), brand color `#3B82F6`, and the deterministic render path.
 
 | #   | Sample                      | Template       | Duration | Size   | MP4                                               |
 | --- | --------------------------- | -------------- | -------- | ------ | ------------------------------------------------- |
-| 1   | How HTTPS Works             | Tech Explainer | 96.3s    | 2.0 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
-| 2   | Một ngày của lập trình viên | Promo / Ad     | 82.4s    | 2.0 MB | [video.mp4](samples/02-a-day-in-code/video.mp4)   |
-| 3   | 5 Git commands cứu mạng bạn | Tutorial       | 110.8s   | 2.1 MB | [video.mp4](samples/03-git-5-commands/video.mp4)  |
+| 0   | Engine smoke test           | Tech Explainer | 15.0s    | 0.8 MB | [video.mp4](samples/00-engine-smoke/video.mp4)    |
+| 1   | How HTTPS Works             | Tech Explainer | 96.4s    | 3.7 MB | [video.mp4](samples/01-how-https-works/video.mp4) |
+| 2   | Một ngày của lập trình viên | Promo / Ad     | 82.3s    | 3.0 MB | [video.mp4](samples/02-a-day-in-code/video.mp4)   |
+| 3   | 5 Git commands cứu mạng bạn | Tutorial       | 111.0s   | 2.7 MB | [video.mp4](samples/03-git-5-commands/video.mp4)  |
+
+Durations and sizes are measured with `ffprobe` on the committed files, not estimated. The scripts budget 15 s / 96 s / 70 s / 111 s — sample 02 renders longer than its script because the Vietnamese voiceover needs more time than the scene budget allows.
 
 **Frames from the rendered videos** (Phosphor icons, particles, terminal mockups, code blocks, metric cards, bullet stacks):
 
 <p align="center">
-  <img src="docs/gallery/s01_t21.png" width="48%" alt="Sample 01 - HTTPS bullets scene" />
+  <img src="docs/gallery/s01_t15.png" width="48%" alt="Sample 01 - bullet list scene" />
   &nbsp;
-  <img src="docs/gallery/s01_t68.png" width="48%" alt="Sample 01 - Diffie-Hellman metric cards" />
+  <img src="docs/gallery/s01_t50.png" width="48%" alt="Sample 01 - terminal code snippet" />
   <br>
-  <img src="docs/gallery/s02_t30.png" width="48%" alt="Sample 02 - Bug bullets + subtitle bar" />
+  <img src="docs/gallery/s01_t66.png" width="48%" alt="Sample 01 - metric cards (X25519 / 128-bit)" />
   &nbsp;
-  <img src="docs/gallery/s02_t75.png" width="48%" alt="Sample 02 - Conclusion badge + bullets + CTA" />
+  <img src="docs/gallery/s02_t48.png" width="48%" alt="Sample 02 - metric cards (commits / PRs / bugs)" />
   <br>
-  <img src="docs/gallery/s03_t45.png" width="48%" alt="Sample 03 - git bisect diagram" />
+  <img src="docs/gallery/s02_t60.png" width="48%" alt="Sample 02 - code snippet scene" />
   &nbsp;
-  <img src="docs/gallery/s01_t82.png" width="48%" alt="Sample 01 - AES metrics scene" />
+  <img src="docs/gallery/s03_t36.png" width="48%" alt="Sample 03 - git bisect diagram" />
 </p>
 
 Each sample folder has the hand-written `script.json` used by the pipeline — useful for debugging, replay, or as a starting template for new demos. Re-render any sample with:
 
 ```bash
+npm run render-sample -- 00-engine-smoke
 npm run render-sample -- 01-how-https-works
 npm run render-sample -- 02-a-day-in-code
 npm run render-sample -- 03-git-5-commands
@@ -266,7 +270,7 @@ fine-video-as-code/
 │       ├── tech-explainer.html
 │       ├── promo.html
 │       └── tutorial.html
-├── samples/                 # 4 demo videos (rendered, ~8 MB total)
+├── samples/                 # 4 demo videos (rendered, ~10.6 MB total)
 │   ├── 00-engine-smoke/     # 3-scene engine smoke test
 │   ├── 01-how-https-works/
 │   ├── 02-a-day-in-code/
@@ -312,7 +316,7 @@ CI runs the same commands on every push and pull request: see [`.github/workflow
 | **M2**    | Step 1: Scripting + AI integration (template + LLM rewrite)                                             | ✅     |
 | **M3**    | Step 2 TTS (edge-tts) + Step 4 render (Playwright)                                                      | ✅     |
 | **M4**    | Frontend form + SSE progress UI                                                                         | ✅     |
-| **M5**    | 3 demo samples rendered + committed                                                                     | ✅     |
+| **M5**    | 4 demo samples rendered + committed (incl. the engine smoke test)                                       | ✅     |
 | **M6**    | MIT-clean rendering engine (Playwright + HTML)                                                          | ✅     |
 | **M7**    | Hand-written curated samples (3 invested scripts)                                                       | ✅     |
 | **M8**    | Git history cleanup (rewrite commit messages)                                                           | ✅     |

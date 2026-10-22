@@ -114,6 +114,16 @@ that keeps the tree honest.
 
 ### Documentation
 
+- **Sample metadata is measured, not estimated.** The demo tables in `README.md` and
+  `samples/README.md` now carry the real `ffprobe` duration and file size of every
+  committed MP4 (sample 02 renders 82.3 s against a 70 s script budget — the
+  Vietnamese voiceover needs longer than the scene allows).
+- **Gallery frames were re-extracted from the v2 videos.** `docs/gallery/*.png` shows
+  the grid layout, the auto-fit scaling and the per-word karaoke captions instead of
+  the pre-v2 frames.
+- **The rendering section describes the repo directly.** It walks through
+  Playwright/Chromium → Edge-TTS → ffmpeg-static and what each piece contributes,
+  without comparing the project to any other stack.
 - Every mention of the previous rendering stack is gone. The repo now describes only
   the current one — **Playwright + headless Chromium + vanilla HTML/CSS templates +
   Edge-TTS + ffmpeg-static** — and explains why it fits an MIT-licensed project

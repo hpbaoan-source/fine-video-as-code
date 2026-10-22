@@ -4,12 +4,16 @@
 
 | # | Tên | Template | Thời lượng | Size |
 |---|-----|----------|------------|------|
-| 0 | [Engine smoke test](00-engine-smoke/video.mp4) | Tech Explainer | 15s | 0.8 MB |
-| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 96s | 2.0 MB |
-| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 70s | 2.0 MB |
-| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 111s | 2.1 MB |
+| 0 | [Engine smoke test](00-engine-smoke/video.mp4) | Tech Explainer | 15.0s | 0.8 MB |
+| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 96.4s | 3.7 MB |
+| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 82.3s | 3.0 MB |
+| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 111.0s | 2.7 MB |
 
-**Total:** 4 video files (~7 MB), 4 script.json (pre-written Vietnamese).
+**Total:** 4 video files (~10.6 MB), 4 script.json (pre-written Vietnamese).
+
+Thời lượng và size lấy từ `ffprobe` trên chính file MP4 đã commit, không ước lượng. Script
+cấp ngân sách 15s / 96s / 70s / 111s — sample 02 render dài hơn script vì giọng đọc tiếng
+Việt cần nhiều thời gian hơn ngân sách của scene.
 
 Sample 00 là smoke test của engine: 3 scene ngắn, render trong ~3 phút — dùng để
 kiểm tra template sau khi sửa mà không phải chờ cả video dài.

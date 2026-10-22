@@ -138,6 +138,16 @@ The curated sample scripts in `samples/`, ready to be sent as `presetScript`:
 {
   "presets": [
     {
+      "id": "00-engine-smoke",
+      "path": "samples/00-engine-smoke/script.json",
+      "template": "tech-explainer",
+      "language": "vi",
+      "voice": "vi-VN-HoaiMyNeural",
+      "scenes": 3,
+      "duration_ms": 15000,
+      "topic": "Kiểm tra engine"
+    },
+    {
       "id": "01-how-https-works",
       "path": "samples/01-how-https-works/script.json",
       "template": "tech-explainer",
@@ -150,6 +160,11 @@ The curated sample scripts in `samples/`, ready to be sent as `presetScript`:
   ]
 }
 ```
+
+The catalogue is discovered on disk — every folder under `samples/` that contains a
+readable `script.json` becomes one entry, so it grows with the repo. `duration_ms` is
+the sum of the scripted scene budgets; the rendered MP4 can run longer when the
+voiceover needs more time than the budget allows.
 
 ---
 
