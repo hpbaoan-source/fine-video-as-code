@@ -50,4 +50,6 @@ test("expandVietnameseAcronyms: expands common technical acronyms for Edge-TTS",
   assert.equal(expandVietnameseAcronyms("Quản lý dự án (PM)"), "Quản lý dự án (bi em)");
   assert.equal(expandVietnameseAcronyms("Quản trị cơ sở dữ liệu (DBA)"), "Quản trị cơ sở dữ liệu (đi bi ê)");
   assert.equal(expandVietnameseAcronyms("chi tiết JD và gửi CV qua eOffice"), "chi tiết dây đi và gửi xi vi qua e óp phít");
+  assert.equal(expandVietnameseAcronyms("giao thức HTTPS và HTTP trên TLS/SSL"), "giao thức hắt tê tê pê ét và hắt tê tê pê trên ti en ét/ét ét en");
+  assert.equal(expandVietnameseAcronyms("mở IDE kiểm tra CI/CD và tạo PR"), "mở ai đi i kiểm tra xi ai xi đi và tạo pi a");
 });
