@@ -73,6 +73,11 @@ window.fineVideoEngine = (() => {
     return 1 - Math.pow(1 - k, 3);
   }
 
+  function easeOutBack(k, s = 1.70158) {
+    const t = k - 1;
+    return 1 + (s + 1) * Math.pow(t, 3) + s * Math.pow(t, 2);
+  }
+
   // ── Design tokens ──────────────────────────────────────────
   //
   // Mirrors shared/design-tokens.css (the portal reads that file
@@ -145,7 +150,7 @@ ${tokenCss()}
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     html, body {
-      width: 1920px; height: 1080px;
+      width: 100%; height: 100%;
       background: var(--fv-bg); color: var(--fv-text);
       overflow: hidden;
       font-family: var(--fv-font-sans);
@@ -297,6 +302,78 @@ ${tokenCss()}
     .particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
     .icon { display: inline-flex; align-items: center; justify-content: center; }
     .chart { display: flex; flex-direction: column; gap: 14px; width: 100%; }
+
+    @media (orientation: portrait) {
+      :root {
+        --fv-safe-x: 48px;
+        --fv-safe-y: 80px;
+        --fv-subbar-min: 240px;
+        --fv-text-5xl: 72px;
+        --fv-text-4xl: 56px;
+        --fv-text-3xl: 44px;
+        --fv-text-2xl: 36px;
+        --fv-text-xl: 30px;
+        --fv-text-lg: 24px;
+      }
+      .fv-scene {
+        perspective: 1200px;
+      }
+      .fv-scene-grid {
+        gap: var(--fv-space-6);
+        transform-style: preserve-3d;
+      }
+      .fv-scene[data-layout="split"] .fv-scene-grid {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto auto;
+        gap: var(--fv-space-6);
+      }
+      .fv-scene[data-layout="split"] .fv-col-visual {
+        order: -1;
+        justify-self: center;
+      }
+      .fv-scene[data-layout="split"] .fv-col-content {
+        justify-self: center;
+        align-items: center;
+        text-align: center;
+      }
+      .fv-scene[data-layout="split"] .fv-cue {
+        align-self: center;
+      }
+      .fv-scene[data-layout="split"] .fv-subheading {
+        text-align: center;
+      }
+      .fv-col-content {
+        max-width: 960px;
+      }
+      .fv-subbar {
+        min-height: var(--fv-subbar-min);
+        padding: 24px var(--fv-safe-x) 120px;
+        background: linear-gradient(180deg, rgba(10,12,16,0) 0%, rgba(10,12,16,0.92) 28%, rgba(10,12,16,0.98) 100%);
+        backdrop-filter: blur(12px);
+      }
+      .fv-subbar-text {
+        font-size: var(--fv-text-lg);
+        line-height: 1.45;
+        text-align: center;
+      }
+      .fv-subbar-progress {
+        bottom: 96px;
+      }
+      .fv-bullets {
+        gap: var(--fv-space-4);
+      }
+      .fv-bullet {
+        font-size: var(--fv-text-lg);
+      }
+      .fv-metrics {
+        grid-template-columns: 1fr;
+        width: 100%;
+        max-width: 600px;
+      }
+      .fv-metric {
+        text-align: center;
+      }
+    }
   `;
 
   // ── Brand ──────────────────────────────────────────────────
@@ -739,6 +816,7 @@ ${tokenCss()}
       const availW = grid.clientWidth;
       if (!availH || !availW || !needH) continue;
       const scale = Math.min(1, availH / needH, availW / needW);
+      el.__fv_baseScale = scale < 0.995 ? scale : 1;
       if (scale < 0.995) {
         grid.style.transform = `scale(${scale.toFixed(4)})`;
         grid.style.transformOrigin = "center center";
@@ -750,12 +828,26 @@ ${tokenCss()}
   // would run four document-wide queries per frame.
   function cacheSceneNodes(sceneEls) {
     for (const el of sceneEls) {
+      const metricNodes = Array.from(el.querySelectorAll("[data-metric-i]"));
       el.__fv = {
+        grid: el.querySelector(".fv-scene-grid"),
         eq: Array.from(el.querySelectorAll(".fv-eq-bar")),
         progress: Array.from(el.querySelectorAll("[data-fv-progress]")),
         words: Array.from(el.querySelectorAll("[data-kw-start]")),
         bullets: Array.from(el.querySelectorAll("[data-bullet-i]")),
-        metrics: Array.from(el.querySelectorAll("[data-metric-i]")),
+        metrics: metricNodes,
+        metricValues: metricNodes.map((m) => {
+          const valEl = m.querySelector(".fv-metric-value");
+          const raw = valEl ? valEl.textContent.trim() : "";
+          const match = raw.match(/^([0-9.,]+)(.*)$/);
+          if (match && !raw.includes("/")) {
+            const num = Number.parseInt(match[1].replace(/[.,]/g, ""), 10);
+            return Number.isFinite(num) && num > 100
+              ? { el: valEl, original: raw, num, suffix: match[2] }
+              : null;
+          }
+          return null;
+        }),
         diagSteps: Array.from(el.querySelectorAll("[data-diag-step-i]")),
         diagPills: Array.from(el.querySelectorAll("[data-diag-i]")),
         subbar: el.querySelector(".fv-subbar"),
@@ -786,6 +878,17 @@ ${tokenCss()}
     const cache = el.__fv;
     if (!cache) return;
     const local = clamp(localMs, 0, durationMs || 0);
+    const frac = durationMs > 0 ? clamp(local / durationMs, 0, 1) : 0;
+
+    // Continuous 2.5D Camera subtle push-in & entrance 3D tilt
+    if (cache.grid) {
+      const base = el.__fv_baseScale || 1;
+      const zoom = base * (1 + 0.03 * frac);
+      const enterK = clamp(local / 500, 0, 1);
+      const tilt = (1 - easeOutCubic(enterK)) * 3.5;
+      cache.grid.style.transform = `scale(${zoom.toFixed(4)}) rotateX(${tilt.toFixed(2)}deg)`;
+      cache.grid.style.transformOrigin = "center center";
+    }
 
     // Equaliser bars
     for (const bar of cache.eq) {
@@ -804,27 +907,34 @@ ${tokenCss()}
     }
 
     // Progress line under the caption
-    const frac = durationMs > 0 ? clamp(local / durationMs, 0, 1) : 0;
     for (const p of cache.progress) p.style.width = `${(frac * 100).toFixed(2)}%`;
 
-    // Bullets: 180ms stagger, 280ms duration, ease-out quad.
+    // Bullets: 180ms stagger, 300ms duration, ease-out back spring
     for (const b of cache.bullets) {
       const i = Number(b.dataset.bulletI) || 0;
       const t = local - i * 180;
-      const k = t <= 0 ? 0 : t >= 280 ? 1 : t / 280;
-      const eased = easeOutQuad(k);
-      b.style.opacity = eased.toFixed(3);
-      b.style.transform = `translateX(${((1 - eased) * -30).toFixed(1)}px)`;
+      const k = t <= 0 ? 0 : t >= 300 ? 1 : t / 300;
+      const eased = easeOutBack(k);
+      b.style.opacity = clamp(k * 1.4, 0, 1).toFixed(3);
+      b.style.transform = `translateX(${((1 - eased) * -28).toFixed(1)}px) scale(${(0.92 + 0.08 * eased).toFixed(3)})`;
     }
 
-    // Metrics: 140ms stagger, 260ms duration, ease-out cubic.
-    for (const m of cache.metrics) {
-      const i = Number(m.dataset.metricI) || 0;
+    // Metrics: 140ms stagger, 280ms duration, ease-out back spring + counter roll
+    for (let mi = 0; mi < cache.metrics.length; mi++) {
+      const m = cache.metrics[mi];
+      const i = Number(m.dataset.metricI) || mi;
       const t = local - i * 140;
-      const k = t <= 0 ? 0 : t >= 260 ? 1 : t / 260;
-      const eased = easeOutCubic(k);
-      m.style.opacity = eased.toFixed(3);
-      m.style.transform = `translateY(${((1 - eased) * 20).toFixed(1)}px) scale(${(0.85 + 0.15 * eased).toFixed(3)})`;
+      const k = t <= 0 ? 0 : t >= 280 ? 1 : t / 280;
+      const eased = easeOutBack(k);
+      m.style.opacity = clamp(k * 1.4, 0, 1).toFixed(3);
+      m.style.transform = `translateY(${((1 - eased) * 22).toFixed(1)}px) scale(${(0.88 + 0.12 * eased).toFixed(3)})`;
+
+      const mv = cache.metricValues ? cache.metricValues[mi] : null;
+      if (mv && mv.el) {
+        const countK = easeOutCubic(clamp(local / 900, 0, 1));
+        const cur = Math.round(mv.num * countK);
+        mv.el.textContent = `${cur.toLocaleString("vi-VN")}${mv.suffix}`;
+      }
     }
 
     // Diagram steps: 120ms stagger, 240ms duration.
