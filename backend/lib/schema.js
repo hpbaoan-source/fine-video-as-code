@@ -109,6 +109,7 @@ export const VisualCueSchema = z.object({
 export const SceneSchema = z.object({
   id: z.string().regex(/^scene-\d+$/),
   voiceover: z.string().min(1),
+  tts_voiceover: z.string().optional(),
   duration_ms: z.number().int().min(500).max(30000), // initial estimate
   visual_cues: z.array(VisualCueSchema).default([]),
   on_screen_text: z.string().optional(),

@@ -86,3 +86,44 @@ export function capCodeSnippet(code, maxLines = 8, maxLineChars = 120) {
     .map((l) => truncate(l, maxLineChars))
     .join("\n");
 }
+
+// ─── Vietnamese technical acronym phonetics for Edge-TTS ──────
+// Acronyms in Vietnamese tech/business narration sound best when
+// spelled out with phonetic approximations so Edge-TTS pronounces
+// them clearly rather than mangling them.
+export const VIETNAMESE_ACRONYMS = [
+  // Multi-word acronyms first (longest match)
+  [/\bVNPT[- ]?IT\b/gi, "vi en bi ti ai ti"],
+  [/\bVNPT\b/gi, "vi en bi ti"],
+  [/\bVGS\b/g, "vi gi ét"],
+  [/\bPM\b/g, "bi em"],
+  [/\bDBA\b/g, "đi bi ê"],
+  [/\bJD\b/g, "dây đi"],
+  [/\bCV\b/g, "xi vi"],
+  [/\bSA\b/g, "ét ê"],
+  [/\beOffice\b/gi, "e óp phít"],
+  [/\bIT\b/g, "ai ti"],
+  [/\bAI\b/g, "ây ai"],
+  [/\bUI\b/g, "u ai"],
+  [/\bUX\b/g, "u ích"],
+  [/\bCEO\b/g, "xi i ô"],
+  [/\bCTO\b/g, "xi ti ô"],
+  [/\bHR\b/g, "hắt a"],
+  [/\bERP\b/g, "i a pi"],
+  [/\bAPI\b/g, "ây pi ai"],
+  [/\bDevOps\b/gi, "đép óp"],
+  [/\bQA\b/g, "kiu ê"],
+  [/\bQC\b/g, "kiu xi"],
+];
+
+/**
+ * Expand English technical acronyms into Vietnamese-friendly phonetic
+ * approximations for Edge-TTS speech generation.
+ */
+export function expandVietnameseAcronyms(text) {
+  let s = String(text ?? "");
+  for (const [re, rep] of VIETNAMESE_ACRONYMS) {
+    s = s.replace(re, rep);
+  }
+  return s;
+}

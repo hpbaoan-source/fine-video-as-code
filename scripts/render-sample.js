@@ -51,6 +51,10 @@ const input = GenerateInputSchema.parse({
   duration: durationSec,
   presetScript: scriptPath,
   outputFilename: "video",
+  ...(script.aspectRatio ? { aspectRatio: script.aspectRatio } : {}),
+  ...(script.resolution ? { resolution: script.resolution } : {}),
+  ...(script.brandColor ? { brandColor: script.brandColor } : {}),
+  ...(script.accentColor ? { accentColor: script.accentColor } : {}),
 });
 
 const job = jobStore.create(input);
