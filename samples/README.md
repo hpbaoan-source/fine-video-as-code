@@ -5,9 +5,9 @@
 | # | Tên | Template | Thời lượng | Size |
 |---|-----|----------|------------|------|
 | 0 | [Engine smoke test](00-engine-smoke/video.mp4) | Tech Explainer | 15.0s | 0.8 MB |
-| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 96.4s | 3.7 MB |
-| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 82.3s | 3.0 MB |
-| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 111.0s | 2.7 MB |
+| 1 | [How HTTPS Works](01-how-https-works/video.mp4) | Tech Explainer | 95.9s | 8.3 MB |
+| 2 | [Một ngày của lập trình viên](02-a-day-in-code/video.mp4) | Promo / Ad | 77.3s | 6.8 MB |
+| 3 | [5 Git commands cứu mạng bạn](03-git-5-commands/video.mp4) | Tutorial | 101.8s | 8.0 MB |
 
 **Total:** 4 video files (~10.6 MB), 4 script.json (pre-written Vietnamese).
 

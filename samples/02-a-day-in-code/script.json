@@ -3,88 +3,110 @@
   "template": "promo",
   "language": "vi",
   "voice": "vi-VN-HoaiMyNeural",
+  "brandColor": "#8B5CF6",
+  "accentColor": "#F59E0B",
   "meta": {
     "topic": "Một ngày của lập trình viên",
-    "description": "60 giây xuyên qua một ngày code: sáng cafe, trưa debug, chiều ship, tối tự hào nhìn lại."
+    "description": "Hành trình trọn vẹn 24 giờ của kỹ sư phần mềm: sáng cafe, trưa debug, chiều ship, tối mỉm cười nhìn lại."
   },
   "scenes": [
     {
       "id": "scene-1",
-      "heading": "6:00 SA",
-      "voiceover": "Sáu giờ sáng. Tách cà phê đen đầu tiên. Mở máy, mở IDE, mở Jira. Bảy mươi tám ticket đang chờ. Bạn chọn một ticket nhỏ để bắt đầu — đừng cố làm tất cả.",
+      "heading": "6:00 SA — KHỞI ĐẦU NGÀY MỚI",
+      "badge": "KHỞI ĐỘNG BUỔI SÁNG",
+      "subheading": "Tách cà phê đen đầu ngày, mở IDE và bắt đầu với mục tiêu nhỏ nhất",
+      "voiceover": "Sáu giờ sáng. Tách cà phê đen nóng hổi. Mở máy tính, mở IDE, mở Jira. Hàng chục ticket đang chờ, nhưng bạn chọn một mục tiêu nhỏ để khởi đầu trọn vẹn.",
       "duration_ms": 12000,
-      "visual_cue": "TODO list + IDE",
+      "visual_cue": "Khởi đầu ngày mới cùng cafe và IDE",
       "visual_cues": [
-        { "type": "icon", "name": "coffee", "size": 260 }
+        { "type": "icon", "name": "coffee", "size": 240 }
+      ],
+      "metrics": [
+        { "value": "1 Tách", "label": "CÀ PHÊ NGUYÊN CHẤT" },
+        { "value": "78 Task", "label": "JIRA TICKETS BACKLOG" },
+        { "value": "1 Mục tiêu", "label": "KHỞI ĐẦU TẬP TRUNG" }
       ]
     },
     {
       "id": "scene-2",
-      "heading": "9:00 — Flow state",
-      "voiceover": "Chín giờ, code chạy. Nhạc lo-fi, mắt dán vào màn hình. Hai tiếng trôi như hai phút. Bạn viết test, viết code, viết lại code. Lần này nó compile.",
-      "duration_ms": 11000,
-      "visual_cue": "lo-fi + terminal",
+      "heading": "9:00 — BƯỚC VÀO FLOW STATE",
+      "badge": "TẬP TRUNG CAO ĐỘ",
+      "subheading": "Âm thanh Lo-fi vang lên, hai tiếng trôi qua êm đềm như hai phút",
+      "voiceover": "Chín giờ, code chạy mượt mà. Nhạc Lo-fi vang lên, ánh mắt dán chặt vào màn hình. Bạn viết test, hoàn thiện logic, và compiler báo xanh không một lỗi.",
+      "duration_ms": 12000,
+      "visual_cue": "Trạng thái tập trung sâu Flow State",
       "visual_cues": [
-        { "type": "icon", "name": "desktop", "size": 260 }
+        { "type": "icon", "name": "desktop", "size": 240 }
+      ],
+      "bullets": [
+        "Không gian tĩnh lặng, âm nhạc Lo-fi nhịp nhàng",
+        "Viết Unit Test chặt chẽ, kiểm soát trọn vẹn logic",
+        "Build xanh không cảnh báo, sẵn sàng cho bước tiếp theo"
       ]
     },
     {
       "id": "scene-3",
-      "heading": "12:30 — Debug hell",
-      "voiceover": "Mười hai rưỡi. Bug xuất hiện ở production. Bạn mở log, mở debugger, mở Stack Overflow. Bốn mươi lăm phút sau, hóa ra là dấu phẩy. Cổ điển.",
-      "duration_ms": 12000,
-      "visual_cue": "bug + log + Stack Overflow",
+      "heading": "12:30 — CHIẾN ĐẤU VỚI BUG PRODUCTION",
+      "badge": "THỬ THÁCH BẤT NGỜ",
+      "subheading": "Bốn mươi lăm phút truy vết log hệ thống chỉ vì một dấu phẩy thất lạc",
+      "voiceover": "Mười hai giờ rưỡi. Báo động bug xuất hiện trên production. Bạn bình tĩnh soi log, đặt breakpoint và truy vết. Bốn mươi lăm phút sau, hóa ra là một dấu phẩy.",
+      "duration_ms": 13000,
+      "visual_cue": "Gỡ rối bug hệ thống production",
       "visual_cues": [
-        { "type": "icon", "name": "bug", "size": 260 }
+        { "type": "icon", "name": "bug", "size": 240 }
       ],
-      "subheading": "Câu chuyện muôn thuở — 45 phút debug một dấu phẩy.",
       "bullets": [
-        "Mở log → thấy stack trace ở dòng 142",
-        "Mở debugger → đặt breakpoint, step từng dòng",
-        "Mở Stack Overflow → tìm cách sửa cùng pattern"
+        "Soi log hệ thống: Định vị stack trace chính xác ở dòng 142",
+        "Đặt breakpoint debugger: Lần theo từng bước thực thi của hàm",
+        "Sửa đúng một dấu phẩy: Hệ thống production lập tức bình yên trở lại"
       ]
     },
     {
       "id": "scene-4",
-      "heading": "15:00 — Code review",
-      "voiceover": "Ba giờ chiều. Bạn review code đồng đội — không phải để tìm lỗi, mà để học cách họ nghĩ. Bạn để lại ba comment, hai suggestion, một lời khen. Review xong, họ cũng review bạn.",
-      "duration_ms": 12000,
-      "visual_cue": "PR review",
+      "heading": "15:00 — CODE REVIEW CÙNG ĐỒNG ĐỘI",
+      "badge": "LAN TỎA TRI THỨC",
+      "subheading": "Đọc code đồng đội để học hỏi tư duy, phản biện văn minh và cùng nhau tiến bộ",
+      "voiceover": "Ba giờ chiều. Bạn review code đồng đội không phải để săm soi, mà để học hỏi góc nhìn mới. Vài góp ý xây dựng, giải pháp tối ưu và một lời khen chân thành.",
+      "duration_ms": 13000,
+      "visual_cue": "Review Pull Request cùng đồng nghiệp",
       "visual_cues": [
-        { "type": "icon", "name": "eye", "size": 260 }
+        { "type": "icon", "name": "eye", "size": 240 }
       ],
       "metrics": [
-        { "value": "3", "label": "COMMENTS" },
-        { "value": "2", "label": "SUGGESTIONS" },
-        { "value": "1", "label": "PRAISE" }
+        { "value": "3", "label": "GÓP Ý XÂY DỰNG" },
+        { "value": "2", "label": "GIẢI PHÁP TỐI ƯU" },
+        { "value": "1", "label": "LỜI KHEN CHÂN THÀNH" }
       ]
     },
     {
       "id": "scene-5",
-      "heading": "18:00 — Ship it",
-      "voiceover": "Sáu giờ chiều. Merge. CI chạy xanh. Bạn deploy lên staging. Bạn thở. Đó không phải chỉ là code — đó là hàng nghìn người dùng sẽ dùng tính năng bạn viết hôm nay.",
-      "duration_ms": 12000,
-      "visual_cue": "deploy + CI green",
+      "heading": "18:00 — DEPLOY LÊN PRODUCTION",
+      "badge": "SHIP SẢN PHẨM",
+      "subheading": "CI/CD tự động chạy xanh, hàng ngàn người dùng trải nghiệm tính năng mới",
+      "voiceover": "Sáu giờ chiều. Nhấn nút merge. Đường ống CI/CD chạy xanh toàn bộ. Bạn thở phào nhẹ nhõm khi tính năng mới chính thức đến tay hàng nghìn người dùng.",
+      "duration_ms": 13000,
+      "visual_cue": "Đẩy tính năng lên môi trường production",
       "visual_cues": [
-        { "type": "icon", "name": "rocket", "size": 260 }
+        { "type": "icon", "name": "rocket", "size": 240 }
       ],
-      "codeSnippet": "$ git push origin feat/auth\n✓ CI: 14 jobs green\n✓ Deploy: staging-up-3\n⚠ Manual smoke-test required before prod"
+      "codeSnippet": "$ git push origin feat/core-features\n✓ CI Pipeline: 18/18 jobs passed\n✓ Staging Health Check: 100% OK\n🚀 Production Deployed Successfully at 18:05"
     },
     {
       "id": "scene-6",
-      "heading": "Mỗi ngày là một viên gạch",
-      "voiceover": "Ngày mai bạn sẽ lặp lại. Và đó là điều tuyệt vời — mỗi dòng code là một viên gạch nhỏ xây nên thứ lớn hơn. Bắt đầu hành trình dev của bạn ngay hôm nay.",
-      "duration_ms": 11000,
-      "visual_cue": "code stack building up",
+      "heading": "MỖI NGÀY LÀ MỘT BƯỚC TIẾN XA",
+      "badge": "TỰ HÀO LẬP TRÌNH VIÊN",
+      "subheading": "Mỗi dòng code bạn viết hôm nay là viên gạch xây dựng thế giới tương lai",
+      "voiceover": "Ngày mai bạn sẽ tiếp tục hành trình này. Mỗi dòng code là một viên gạch nhỏ kiến tạo nên những giải pháp lớn lao. Hãy tự hào về hành trình kỹ sư của chính bạn.",
+      "duration_ms": 13000,
+      "visual_cue": "Tự hào nhìn lại chặng đường nghề lập trình",
       "visual_cues": [
-        { "type": "icon", "name": "lightbulb", "size": 260 }
+        { "type": "icon", "name": "lightbulb", "size": 240 }
       ],
-      "badge": "MỘT NGÀY TRỌN VẸN",
       "bullets": [
-        "Sáng: bắt đầu với 1 task nhỏ — không cố ôm đồm",
-        "Trưa: debug như Sherlock Holmes — bình tĩnh đọc log",
-        "Chiều: review code đồng đội — học cách họ nghĩ",
-        "Tối: ship và thở — công việc thật sự bắt đầu từ đây"
+        "Sáng: Khởi đầu ngày mới với mục tiêu rõ ràng, không ôm đồm",
+        "Trưa: Bình tĩnh giải quyết thử thách như một thám tử công nghệ",
+        "Chiều: Đồng hành, lắng nghe và gắn kết vững chắc cùng đồng đội",
+        "Tối: Tự hào nhìn sản phẩm hoạt động và chuẩn bị cho ngày mai"
       ]
     }
   ]

@@ -3,116 +3,122 @@
   "template": "tutorial",
   "language": "vi",
   "voice": "vi-VN-HoaiMyNeural",
+  "brandColor": "#F97316",
+  "accentColor": "#06B6D4",
   "meta": {
     "topic": "5 Git commands cứu mạng bạn",
-    "description": "Năm lệnh Git mà mọi dev nên biết — từ undo commit đến tìm bug trong 5 phút."
+    "description": "Năm lệnh Git uy lực mà mọi lập trình viên cần biết — từ khôi phục commit mất tích đến khoanh vùng bug trong nháy mắt."
   },
   "scenes": [
     {
       "id": "scene-1",
-      "heading": "5 lệnh Git bạn ước biết sớm hơn",
-      "voiceover": "Bạn dùng Git mỗi ngày, nhưng có những lệnh ít người biết mà một khi thành thạo, bạn sẽ không bao giờ muốn quay lại cách cũ. Đây là năm lệnh như vậy.",
+      "heading": "5 LỆNH GIT BẠN ƯỚC BIẾT SỚM HƠN",
+      "badge": "GIT MASTERY",
+      "subheading": "Từ khôi phục commit đã mất đến truy tìm bug trong năm phút",
+      "voiceover": "Bạn dùng Git mỗi ngày, nhưng có những câu lệnh cực kỳ hữu ích mà khi thành thạo, bạn sẽ tiết kiệm hàng giờ gỡ rối. Đây là năm lệnh cứu mạng bạn.",
       "duration_ms": 13000,
-      "visual_cue": "intro hook",
+      "visual_cue": "Khám phá 5 lệnh Git cứu mạng",
       "visual_cues": [
-        { "type": "icon", "name": "terminal", "size": 64 }
+        { "type": "icon", "name": "terminal", "size": 180 }
       ],
-      "badge": "5 LỆNH GIT",
-      "subheading": "Từ undo commit đến tìm bug trong 5 phút — không cần Google lần hai.",
       "bullets": [
-        "reflog — cứu commit lỡ tay xóa",
-        "bisect — tìm commit gây bug",
-        "stash — gạt qua khi bị interrupt",
-        "worktree — làm 2 branch cùng lúc",
-        "rebase -i — dọn dẹp lịch sử"
-]
-    },
-    {
-      "id": "scene-2",
-      "heading": "1. git reflog",
-      "voiceover": "Lệnh đầu tiên: git reflog. Bạn lỡ tay reset sai branch? Bạn xóa commit nhầm? Reflog ghi lại mọi di chuyển HEAD của bạn. Tìm SHA commit đó, git reset lại, xong.",
-      "duration_ms": 16000,
-      "visual_cue": "reflog timeline",
-      "visual_cues": [
-        { "type": "icon", "name": "git-branch", "size": 64 },
-        { "type": "terminal", "content": "git reflog\nabc1234 HEAD@{0}: reset: moving to main\ndef5678 HEAD@{1}: commit: add login flow\nghi9012 HEAD@{2}: commit: WIP on auth" }
-      ],
-      "metrics": [
-        { "value": "30 ngày", "label": "RETENTION" },
-        { "value": "Mọi HEAD", "label": "MOVEMENT" },
-        { "value": "Không mất", "label": "DÙ ĐÃ RESET" }
+        "git reflog — Cỗ máy thời gian cứu commit lỡ tay xóa",
+        "git bisect — Thuật toán nhị phân truy tìm commit gây bug",
+        "git stash — Gác lại việc dở khi có hotfix đột xuất",
+        "git worktree — Làm việc trên 2 branch song song cùng lúc",
+        "git rebase -i — Làm sạch lịch sử commit đẹp như trang vẽ"
       ]
     },
     {
-      "id": "scene-3",
-      "heading": "2. git bisect",
-      "voiceover": "Lệnh hai: git bisect. Khi bug xuất hiện mà bạn không biết từ commit nào. Bisect dùng tìm kiếm nhị phân trong lịch sử commit, hỏi bạn commit này tốt hay xấu, để khoanh vùng commit gây lỗi trong vài phút.",
-      "duration_ms": 18000,
-      "visual_cue": "binary search visualization",
+      "id": "scene-2",
+      "heading": "1. GIT REFLOG — CỖ MÁY THỜI GIAN",
+      "badge": "HOÀN TÁC MỌI LỖI LẦM",
+      "subheading": "Ghi lại từng bước di chuyển của con trỏ HEAD trong 30 ngày gần nhất",
+      "voiceover": "Lệnh đầu tiên: git reflog. Bạn lỡ tay reset nhầm branch hoặc xóa mất commit quan trọng? Reflog ghi lại toàn bộ lịch sử con trỏ. Chỉ cần tìm mã commit cũ và reset lại.",
+      "duration_ms": 15000,
+      "visual_cue": "Nhật ký di chuyển HEAD trong reflog",
       "visual_cues": [
-        { "type": "icon", "name": "git-merge", "size": 64 }
+        { "type": "icon", "name": "git-branch", "size": 180 }
       ],
+      "codeSnippet": "$ git reflog\na1b2c3d HEAD@{0}: reset --hard: moving to main\ne4f5g6h HEAD@{1}: commit: add payment flow (CẦN CỨU!)\n$ git reset --hard e4f5g6h\n# Commit đã phục hồi nguyên vẹn 100%!"
+    },
+    {
+      "id": "scene-3",
+      "heading": "2. GIT BISECT — TRUY VẾT BUG NHỊ PHÂN",
       "badge": "TÌM KIẾM NHỊ PHÂN",
+      "subheading": "Tự động chia đôi lịch sử commit để định vị chính xác commit gây lỗi",
+      "voiceover": "Lệnh thứ hai: git bisect. Khi bug xuất hiện giữa hàng trăm commit, bisect tự động chia đôi lịch sử và nhờ bạn kiểm tra commit ở giữa, giúp khoanh vùng lỗi trong vài phút.",
+      "duration_ms": 16000,
+      "visual_cue": "Tìm kiếm nhị phân commit gây bug",
+      "visual_cues": [
+        { "type": "icon", "name": "git-merge", "size": 180 }
+      ],
       "diagram": {
-        "nodes": ["v1.0 ✓", "bad HEAD ✗"],
+        "nodes": ["Commit tốt v1.0", "Git Bisecting...", "Commit lỗi HEAD"],
         "steps": [
-          "Chia đôi lịch sử commit",
-          "Test commit giữa — tốt hay xấu?",
-          "Loại bỏ nửa không chứa bug",
-          "Lặp lại đến khi còn 1 commit"
+          "git bisect start: Đánh dấu điểm mốc tốt và điểm mốc lỗi",
+          "Git tự động checkout commit ở giữa: Bạn chỉ cần test tốt hay xấu",
+          "Loại bỏ 50% số lượng commit sau mỗi lần kiểm tra",
+          "Chỉ cần 7 bước thử cho 128 commit: Tìm ra thủ phạm ngay lập tức"
         ]
       }
     },
     {
       "id": "scene-4",
-      "heading": "3. git stash",
-      "voiceover": "Lệnh ba: git stash. Đang code dở thì sếp gọi fix bug gấp trên branch khác. Stash lại toàn bộ thay đổi, switch branch, fix xong, pop stash quay lại. Tất cả chỉ trong ba phát gõ.",
-      "duration_ms": 16000,
-      "visual_cue": "stash push/pop",
+      "heading": "3. GIT STASH — GÁC LẠI VIỆC DỞ DANG",
+      "badge": "CHUYỂN NHANH HOTFIX",
+      "subheading": "Cất code đang dở vào ngăn kéo bí mật và khôi phục lại trong một giây",
+      "voiceover": "Lệnh thứ ba: git stash. Đang code dở thì có yêu cầu sửa lỗi khẩn cấp. Bạn dùng stash gác lại toàn bộ thay đổi, chuyển branch fix lỗi, rồi pop code cũ ra làm tiếp.",
+      "duration_ms": 15000,
+      "visual_cue": "Cất tạm và khôi phục code với git stash",
       "visual_cues": [
-        { "type": "icon", "name": "file-text", "size": 64 },
-        { "type": "terminal", "content": "git stash push -m \"wip auth\"\ngit checkout main\ngit checkout -b hotfix\ngit stash pop" }
-      ]
+        { "type": "icon", "name": "file-text", "size": 180 }
+      ],
+      "codeSnippet": "$ git stash push -m \"wip: auth feature\"  # Cất code dở\n$ git checkout -b hotfix && git fix-bug  # Sửa lỗi khẩn\n$ git checkout feature && git stash pop  # Lấy lại code cũ"
     },
     {
       "id": "scene-5",
-      "heading": "4. git worktree",
-      "voiceover": "Lệnh bốn: git worktree. Bạn muốn làm hai việc song song trên hai branch khác nhau mà không cần clone repo lần hai. Worktree tạo ra một working tree mới trong cùng repo.",
-      "duration_ms": 16000,
-      "visual_cue": "two worktrees side by side",
+      "heading": "4. GIT WORKTREE — ĐA NHIỆM SONG SONG",
+      "badge": "LÀM VIỆC 2 BRANCH CÙNG LÚC",
+      "subheading": "Mở đồng thời nhiều branch trên các thư mục riêng trong cùng một repo",
+      "voiceover": "Lệnh thứ tư: git worktree. Bạn muốn làm hai tính năng song song mà không cần clone lại toàn bộ repo. Worktree tạo ra thư mục làm việc mới ngay bên cạnh.",
+      "duration_ms": 15000,
+      "visual_cue": "Mở hai thư mục làm việc song song với worktree",
       "visual_cues": [
-        { "type": "icon", "name": "git-commit", "size": 64 },
-        { "type": "terminal", "content": "git worktree add ../proj-hotfix hotfix\ncd ../proj-hotfix && git pull\ncd ../main && git worktree list" }
-      ]
+        { "type": "icon", "name": "git-commit", "size": 180 }
+      ],
+      "codeSnippet": "$ git worktree add ../hotfix-worktree hotfix\n$ cd ../hotfix-worktree && npm test  # Test độc lập\n$ git worktree remove ../hotfix-worktree  # Gọn gàng"
     },
     {
       "id": "scene-6",
-      "heading": "5. git rebase -i",
-      "voiceover": "Lệnh năm: git rebase với cờ interactive. Bạn có năm commit lộn xộn trên branch. Rebase cho phép gộp, sửa message, đảo thứ tự. Khi xong, lịch sử branch gọn như đã viết ngay từ đầu.",
-      "duration_ms": 16000,
-      "visual_cue": "interactive rebase list",
+      "heading": "5. GIT REBASE -I — LỊCH SỬ SẠCH ĐẸP",
+      "badge": "GỌP COMMIT CHUYÊN NGHIỆP",
+      "subheading": "Gộp nhiều commit vụn thành một commit hoàn hảo trước khi tạo Pull Request",
+      "voiceover": "Lệnh thứ năm: git rebase interactive. Bạn có nhiều commit thử nghiệm vụn vặt. Rebase cho phép bạn gộp, sửa ghi chú và sắp xếp lại để lịch sử branch gọn gàng nhất.",
+      "duration_ms": 15000,
+      "visual_cue": "Gộp và tinh chỉnh lịch sử commit với rebase",
       "visual_cues": [
-        { "type": "icon", "name": "lightbulb", "size": 64 },
-        { "type": "terminal", "content": "git rebase -i HEAD~5\n\npick abc1234 add login\nsquash def5678 fix typo\nreword ghi9012 wip auth\n# Rebase done, history clean" }
-      ]
+        { "type": "icon", "name": "lightbulb", "size": 180 }
+      ],
+      "codeSnippet": "$ git rebase -i HEAD~4\npick a1b2c3d feat: add core authentication\nsquash e4f5g6h fix typo in config\nsquash i7j8k9l update unit tests\n# Lịch sử sạch đẹp, đồng đội review dễ dàng!"
     },
     {
       "id": "scene-7",
-      "heading": "Tổng kết",
-      "voiceover": "Năm lệnh: reflog để cứu, bisect để tìm bug, stash để gạt qua, worktree để làm song song, rebase để dọn dẹp. Thuộc lòng năm lệnh này, bạn đã ở top 5 phần trăm dev biết Git thật sự.",
-      "duration_ms": 16000,
-      "visual_cue": "summary card",
+      "heading": "LÀM CHỦ GIT, TỰ TIN BỨT PHÁ",
+      "badge": "TỔNG KẾT BÀI HỌC",
+      "subheading": "Năm công cụ mạnh mẽ nâng tầm kỹ năng lập trình chuyên nghiệp của bạn",
+      "voiceover": "Năm câu lệnh Git này sẽ giúp bạn tự tin xử lý mọi tình huống phức tạp trong dự án. Hãy lưu lại và áp dụng ngay vào quy trình làm việc hàng ngày của bạn.",
+      "duration_ms": 13000,
+      "visual_cue": "Làm chủ 5 câu lệnh Git hữu ích",
       "visual_cues": [
-        { "type": "icon", "name": "check", "size": 64 }
+        { "type": "icon", "name": "check", "size": 180 }
       ],
-      "badge": "TỔNG KẾT",
       "bullets": [
-        "reflog — cứu commit lỡ tay xóa",
-        "bisect — tìm commit gây bug trong vài phút",
-        "stash — gạt qua khi bị interrupt",
-        "worktree — làm 2 branch cùng lúc không cần clone",
-        "rebase -i — dọn dẹp lịch sử branch gọn như mới viết"
-]
+        "git reflog: An tâm trải nghiệm, không lo mất commit quan trọng",
+        "git bisect: Tiết kiệm hàng giờ đồng hồ tìm lỗi trong dự án lớn",
+        "git stash: Linh hoạt chuyển đổi công việc khẩn cấp mà không xáo trộn",
+        "git worktree & rebase: Phong thái làm việc của kỹ sư chuyên nghiệp"
+      ]
     }
   ]
 }

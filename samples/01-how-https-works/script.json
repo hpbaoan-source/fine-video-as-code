@@ -3,113 +3,130 @@
   "template": "tech-explainer",
   "language": "vi",
   "voice": "vi-VN-HoaiMyNeural",
+  "brandColor": "#0EA5E9",
+  "accentColor": "#10B981",
   "meta": {
     "topic": "How HTTPS Works",
-    "description": "Bạn thấy ổ khóa trên thanh địa chỉ mỗi ngày. Nhưng nó thực sự bảo vệ bạn khỏi cái gì, và bằng cách nào?"
+    "description": "Bạn thấy ổ khóa trên thanh địa chỉ mỗi ngày. Nhưng nó thực sự bảo vệ bạn khỏi điều gì, và bằng cách nào?"
   },
   "scenes": [
     {
       "id": "scene-1",
-      "heading": "Bạn có thấy ổ khóa này?",
-      "voiceover": "Mỗi ngày, hàng tỷ người nhìn thấy biểu tượng ổ khóa này trên thanh địa chỉ. Nhưng nó thực sự đang bảo vệ bạn khỏi điều gì, và bằng cách nào?",
+      "heading": "BẠN CÓ THẤY Ổ KHÓA NÀY?",
+      "badge": "BẢO MẬT WEB",
+      "subheading": "Biểu tượng ổ khóa màu xanh trên URL thực sự bảo vệ bạn như thế nào?",
+      "voiceover": "Mỗi ngày, hàng tỷ người nhìn thấy biểu tượng ổ khóa này trên thanh địa chỉ trình duyệt. Nhưng nó thực sự đang bảo vệ bạn khỏi điều gì, và bằng cách nào?",
       "duration_ms": 12000,
-      "visual_cue": "ổ khóa trên URL",
+      "visual_cue": "Ổ khóa bảo mật trên URL",
       "visual_cues": [
         { "type": "icon", "name": "lock", "size": 220 }
+      ],
+      "metrics": [
+        { "value": "4.8 Tỷ", "label": "NGƯỜI DÙNG INTERNET" },
+        { "value": "95%+", "label": "LƯU LƯỢNG MÃ HÓA HTTPS" }
       ]
     },
     {
       "id": "scene-2",
-      "heading": "Vấn đề của HTTP thuần",
-      "voiceover": "Khi bạn gửi HTTP, mọi thứ đều đi dưới dạng văn bản thuần. Bất kỳ ai cũng có thể chặn và đọc mật khẩu, số thẻ tín dụng, tin nhắn riêng tư của bạn. Đây gọi là tấn công man-in-the-middle.",
-      "duration_ms": 15000,
-      "visual_cue": "gói tin HTTP bị chặn",
+      "heading": "VẤN ĐỀ CỦA HTTP THUẦN",
+      "badge": "NGUY CƠ NGHE LÉN",
+      "subheading": "Dữ liệu văn bản thuần không được mã hóa qua mạng công cộng",
+      "voiceover": "Khi bạn dùng HTTP thuần, mọi thứ đều truyền dưới dạng văn bản mở. Bất kỳ ai trên đường truyền cũng có thể chặn và đọc mật khẩu, số thẻ tín dụng hoặc tin nhắn riêng tư của bạn.",
+      "duration_ms": 14000,
+      "visual_cue": "Gói tin HTTP bị tấn công",
       "visual_cues": [
         { "type": "icon", "name": "globe", "size": 200 }
       ],
-      "subheading": "Một cuộc tấn công man-in-the-middle có thể xảy ra bất cứ lúc nào — trong quán cà phê, sân bay, hoặc đường truyền của nhà mạng.",
       "bullets": [
-        "Mật khẩu và cookie bị đọc trực tiếp",
-        "Kẻ tấn công có thể chèn mã độc vào response",
-        "Không có cách nào phát hiện nếu chỉ nhìn HTTP"
-]
+        "Mật khẩu, cookie và token bị đọc lén trực tiếp",
+        "Kẻ tấn công có thể chèn mã độc vào gói tin phản hồi",
+        "Hoàn toàn không có cơ chế phát hiện giả mạo máy chủ"
+      ]
     },
     {
       "id": "scene-3",
-      "heading": "TLS — giao thức bên dưới HTTPS",
-      "voiceover": "HTTPS thêm vào một lớp mã hóa gọi là TLS. Trước khi dữ liệu nào được gửi đi, client và server thực hiện một bắt tay để thống nhất khóa bí mật chung.",
+      "heading": "BẮT TAY TLS — LỚP GIÁP BẢO VỆ",
+      "badge": "GIAO THỨC TLS 1.3",
+      "subheading": "Thỏa thuận bảo mật tự động diễn ra trong tích tắc trước khi gửi dữ liệu",
+      "voiceover": "HTTPS bổ sung lớp mã hóa TLS. Trước khi dữ liệu nào được gửi đi, trình duyệt và máy chủ thực hiện một quá trình bắt tay để thỏa thuận khóa bí mật chung.",
       "duration_ms": 14000,
-      "visual_cue": "sơ đồ TLS handshake",
+      "visual_cue": "Sơ đồ bắt tay TLS Handshake",
       "visual_cues": [
         { "type": "icon", "name": "handshake", "size": 220 }
       ],
-      "badge": "BẮT TAY TLS",
       "diagram": {
-        "nodes": ["Client", "TLS Handshake", "Server"],
+        "nodes": ["Trình duyệt Client", "Bắt tay TLS", "Máy chủ Server"],
         "steps": [
-          "Client gửi danh sách cipher suites hỗ trợ",
-          "Server chọn cipher + gửi chứng chỉ số",
-          "Hai bên sinh khóa phiên chung qua Diffie-Hellman",
-          "Mọi byte dữ liệu sau đó đều được mã hóa"
-]
+          "ClientHello: Gửi danh sách thuật toán mã hóa hỗ trợ",
+          "ServerHello: Chọn Cipher Suite và gửi Chứng chỉ số",
+          "Diffie-Hellman: Hai bên sinh khóa phiên chung an toàn",
+          "Mọi byte dữ liệu truyền sau đó đều được mã hóa tuyệt đối"
+        ]
       }
     },
     {
       "id": "scene-4",
-      "heading": "Bước 1: Xác minh danh tính server",
-      "voiceover": "Server gửi chứng chỉ số do một bên thứ ba đáng tin cậy ký. Trình duyệt kiểm tra: chứng chỉ có hợp lệ không, có đúng domain không, có bị thu hồi không. Nếu mọi thứ ổn, tin tưởng được.",
-      "duration_ms": 15000,
-      "visual_cue": "chuỗi chứng chỉ + verify",
+      "heading": "BƯỚC 1: XÁC MINH DANH TÍNH SERVER",
+      "badge": "CHỨNG CHỈ SỐ SSL / CA",
+      "subheading": "Trình duyệt kiểm tra chữ ký số của tổ chức thứ ba uy tín",
+      "voiceover": "Server gửi chứng chỉ số do tổ chức uy tín ký xác thực. Trình duyệt tự động kiểm tra chứng chỉ còn hạn hay không, đúng tên miền hay không, và có bị thu hồi hay không.",
+      "duration_ms": 14000,
+      "visual_cue": "Kiểm tra chuỗi chứng chỉ CA",
       "visual_cues": [
         { "type": "icon", "name": "certificate", "size": 220 }
       ],
-      "codeSnippet": "# Trình duyệt tự động kiểm tra:\n✓ Certificate chain hợp lệ\n✓ Domain khớp với SAN entries\n✓ Chưa bị thu hồi (CRL / OCSP)\n✓ Chữ ký của CA đáng tin cậy\n⚠ Nếu thiếu 1 điều kiện → chặn kết nối"
+      "codeSnippet": "# Quy trình tự động kiểm tra chứng chỉ số:\n✓ Certificate Chain hợp lệ (Root CA → Intermediate → Server)\n✓ Domain trùng khớp với SAN (Subject Alternative Names)\n✓ Chưa bị thu hồi trên danh sách CRL / OCSP\n⚠ Nếu thiếu bất kỳ điều kiện nào → Trình duyệt chặn kết nối ngay"
     },
     {
       "id": "scene-5",
-      "heading": "Bước 2: Trao đổi khóa",
-      "voiceover": "Hai bên dùng thuật toán Diffie-Hellman để tạo ra một khóa bí mật chung mà không bao giờ truyền qua mạng. Ngay cả khi ai đó nghe trộm toàn bộ, họ không thể tính ra khóa.",
+      "heading": "BƯỚC 2: TRAO ĐỔI KHÓA BÍ MẬT",
+      "badge": "DIFFIE-HELLMAN (ECDHE)",
+      "subheading": "Sinh khóa chung siêu an toàn mà không cần truyền khóa qua mạng",
+      "voiceover": "Hai bên áp dụng thuật toán Diffie-Hellman để cùng tạo ra một khóa bí mật chung mà không bao giờ truyền qua mạng. Kẻ nghe trộm bắt được toàn bộ gói tin cũng không thể tính ra khóa.",
       "duration_ms": 14000,
-      "visual_cue": "Diffie-Hellman visualization",
+      "visual_cue": "Trao đổi khóa Diffie-Hellman",
       "visual_cues": [
         { "type": "icon", "name": "key", "size": 220 }
       ],
       "metrics": [
-        { "value": "X25519", "label": "Elliptic curve" },
-        { "value": "128-bit", "label": "Forward secrecy" },
-        { "value": "< 1 ms", "label": "Handshake time" }
+        { "value": "X25519", "label": "ĐƯỜNG CONG ELLIPTIC" },
+        { "value": "0-RTT", "label": "TỐC ĐỘ KẾT NỐI TLS 1.3" },
+        { "value": "PFS", "label": "FORWARD SECRECY AN TOÀN" }
       ]
     },
     {
       "id": "scene-6",
-      "heading": "Bước 3: Mã hóa đối xứng",
-      "voiceover": "Từ đây, mọi byte dữ liệu được mã hóa bằng khóa chung. AES-256, chuẩn vàng hiện tại, có thể chịu được cả siêu máy tính trong hàng triệu năm.",
+      "heading": "BƯỚC 3: MÃ HÓA ĐỐI XỨNG SIÊU TỐC",
+      "badge": "CHUẨN MÃ HÓA AES-256",
+      "subheading": "Niêm phong toàn bộ dữ liệu ở tốc độ phần cứng gigabit",
+      "voiceover": "Từ đây, mọi byte dữ liệu được mã hóa bằng khóa phiên chung. Thuật toán AES-256, chuẩn vàng của mật mã học hiện đại, có thể thách thức siêu máy tính trong hàng triệu năm.",
       "duration_ms": 14000,
-      "visual_cue": "mã hóa AES",
+      "visual_cue": "Mã hóa đối xứng AES-GCM",
       "visual_cues": [
         { "type": "icon", "name": "shield-check", "size": 220 }
       ],
       "metrics": [
-        { "value": "AES-256", "label": "Cipher" },
-        { "value": "GCM", "label": "Mode" },
-        { "value": "TLS 1.3", "label": "Protocol" }
+        { "value": "AES-256", "label": "CHUẨN MÃ HÓA QUÂN SỰ" },
+        { "value": "GCM", "label": "CHỐNG CAN THIỆP GÓI TIN" },
+        { "value": "< 1 ms", "label": "ĐỘ TRỄ GIẢI MÃ PHẦN CỨNG" }
       ]
     },
     {
       "id": "scene-7",
-      "heading": "Tóm lại",
-      "voiceover": "Vậy HTTPS không chỉ là một ổ khóa đẹp. Đó là cả một bài toán mã hóa + xác minh danh tính + toán học, chạy trong tích tắc mỗi lần bạn mở trình duyệt. Một kỳ công thầm lặng.",
-      "duration_ms": 12000,
-      "visual_cue": "summary + ổ khóa",
+      "heading": "KỲ CÔNG TOÁN HỌC THẦM LẶNG",
+      "badge": "TỔNG KẾT BẢO MẬT",
+      "subheading": "Mỗi cú nhấp chuột là hàng triệu phép toán bảo vệ bạn trong tích tắc",
+      "voiceover": "Như vậy, HTTPS không chỉ là một chiếc ổ khóa biểu tượng. Đó là sự kết hợp hoàn hảo giữa toán học, chứng chỉ số và thuật toán mã hóa tối tân, chạy mượt mà mỗi khi bạn mở trình duyệt.",
+      "duration_ms": 14000,
+      "visual_cue": "Tổng kết hệ thống bảo mật HTTPS",
       "visual_cues": [
         { "type": "icon", "name": "check", "size": 220 }
       ],
-      "badge": "TÓM LẠI",
       "bullets": [
-        "Chứng chỉ số xác minh bạn nói chuyện đúng server",
-        "Diffie-Hellman sinh khóa chung không truyền qua mạng",
-        "AES-256 mã hóa mọi byte cho đến khi kết nối đóng"
-]
+        "Chứng chỉ số: Đảm bảo bạn đang kết nối đúng máy chủ chính thống",
+        "Diffie-Hellman: Thống nhất khóa bí mật không truyền qua internet",
+        "AES-256 GCM: Khóa chặt toàn bộ dữ liệu ở tốc độ hàng gigabit"
+      ]
     }
   ]
 }

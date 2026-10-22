@@ -17,6 +17,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import ffmpegStatic from "ffmpeg-static";
 import { validateVoice } from "../lib/voice.js";
+import { expandVietnameseAcronyms } from "../lib/text.js";
 
 const execFileP = promisify(execFile);
 const FFMPEG_BIN = ffmpegStatic;
@@ -43,7 +44,11 @@ export async function step2TTS(script, { input, workDir, onLog, onProgress }) {
   for (let i = 0; i < total; i++) {
     const scene = script.scenes[i];
     const outMp3 = path.join(audioDir, `${scene.id}.mp3`);
-    const text = String(scene.voiceover || "").trim();
+    const rawText = String(scene.tts_voiceover || scene.voiceover || "").trim();
+    const text =
+      input.language === "vi" && !scene.tts_voiceover
+        ? expandVietnameseAcronyms(rawText)
+        : rawText;
     const ttsStart = Date.now();
     let ttsOk = false;
     let lastErr = null;
@@ -52,20 +57,26 @@ export async function step2TTS(script, { input, workDir, onLog, onProgress }) {
       // Try each voice candidate in order. Log the final error so a
       // single-voice outage doesn't look like a silent success.
       for (const voice of candidates) {
-        try {
-          // Use --text=<text> with `=` to prevent argparse from
-          // interpreting a leading `-` in the text (e.g. "-5 độ C")
-          // as a CLI option.
-          await execFileP(
-            "edge-tts",
-            ["--voice", voice, "--text", text, "--write-media", outMp3],
-            { ...FFMPEG_OPTS, windowsHide: true }
-          );
-          ttsOk = true;
-          break;
-        } catch (e) {
-          lastErr = e;
+        for (let attempt = 0; attempt < 3; attempt++) {
+          try {
+            // Use --text=<text> with `=` to prevent argparse from
+            // interpreting a leading `-` in the text (e.g. "-5 độ C")
+            // as a CLI option.
+            await execFileP(
+              "edge-tts",
+              ["--voice", voice, "--text", text, "--write-media", outMp3],
+              { ...FFMPEG_OPTS, windowsHide: true }
+            );
+            ttsOk = true;
+            break;
+          } catch (e) {
+            lastErr = e;
+            if (attempt < 2) {
+              await new Promise((r) => setTimeout(r, 800));
+            }
+          }
         }
+        if (ttsOk) break;
       }
     }
 
