@@ -16,7 +16,7 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { dirname } from "node:path";
-import { ScriptSchema } from "../lib/schema.js";
+import { ScriptSchema, SceneSchema } from "../lib/schema.js";
 import { normalizeTemplate } from "../lib/design-system.js";
 import { resolveInside } from "../lib/path-guard.js";
 import { complete } from "../lib/llm-client.js";
@@ -278,34 +278,117 @@ async function maybeRewriteWithLLM(script, input) {
     return script;
   }
 
-  const systemPrompt = `You are a concise video script writer for short explainer videos.
-Given a script structure, rewrite each scene's voiceover to be punchy and natural in ${input.language === "vi" ? "Vietnamese" : "English"}.
-Keep the same number of scenes. Keep the meaning of each scene. Return valid JSON only.`;
+  const langLabel = input.language === "vi" ? "Vietnamese" : "English";
+  const systemPrompt = `You are an expert technical director and motion-graphics scriptwriter for short explainer & promo videos.
+Given a topic and scene structure, rewrite and enrich every scene in ${langLabel} so the video looks like a high-end animated technical infographic.
+Keep the exact same scene "id"s and scene count. Return valid JSON only.
+
+For EACH scene in "scenes", return:
+- "id": exact scene id ("scene-1", etc.)
+- "heading": short punchy uppercase card title (max 45 chars)
+- "badge": short pill category above heading (max 28 chars)
+- "subheading": concise 1-sentence subtitle (max 110 chars)
+- "voiceover": natural, engaging spoken narration in ${langLabel} (~22-35 words per scene)
+- "visual_cue": short caption of what is shown (max 70 chars)
+- Choose 1 left-column enrichment (or omit if minimal):
+  * "bullets": array of 3 concise points (max 90 chars each)
+  * "metrics": array of 2-3 numeric stat cards [{ "value": "10.000.000đ" | "99.9%" | "4.8 Tỷ", "label": "SHORT LABEL" }] — start "value" with a number so the Odometer Counter rolls up!
+  * "codeSnippet": 3-4 lines of terminal/code example (max 300 chars)
+- Choose 1 right-column time-driven animated illustration per scene (vary across scenes):
+  * "flowArchitecture": { "title": "...", "badge": "LIVE FLOW", "sources": [{"icon":"💻","label":"...","sub":"..."}], "center": {"icon":"⚡","title":"...","partitions":["P0","P1"],"cells":8,"sub":"..."}, "targets": [{"icon":"📊","label":"...","sub":"..."}], "caption": "..." } (max 2-3 sources/targets, labels <= 22 chars)
+  * "sequenceFlow": { "title": "...", "actors": [{"icon":"💻","label":"...","sub":"..."},{"icon":"🛡️","label":"...","sub":"..."}], "messages": [{"from":0,"to":1,"tag":"SYN","label":"...","color":"brand"}] } (2 actors, 3-4 messages, labels <= 48 chars)
+  * "hierarchyTree": { "title": "...", "nodes": [{"level":0,"icon":"📂","label":"...","badge":"ROOT"},{"level":1,"icon":"🌿","label":"...","highlight":true,"badge":"ACTIVE"}], "footer": "..." } (4-5 nodes, levels 0-3)
+  * "compareMatrix": { "title": "...", "headers": ["Tiêu chí", "Phương án A", "Phương án B"], "rows": [["...", "...", "..."]] } (3 headers, 3-4 rows)`;
 
   const userPrompt = `Topic: ${input.topic}
 Template: ${input.template}
-Total duration: ${input.duration}s
+Language: ${langLabel}
+Total target duration: ${input.duration}s
 
-Script to rewrite:
-${JSON.stringify(script.scenes.map((s) => ({ id: s.id, role_hint: s.role_hint || s.heading || s.visual_cues?.[0]?.content || "", voiceover: s.voiceover })), null, 2)}
+Scenes to enrich:
+${JSON.stringify(
+  script.scenes.map((s) => ({
+    id: s.id,
+    role_hint: s.role_hint || s.heading || s.visual_cues?.[0]?.content || "",
+    voiceover: s.voiceover,
+  })),
+  null,
+  2
+)}
 
-Return JSON: { "scenes": [{ "id": "scene-1", "voiceover": "..." }] }`;
+Return JSON: { "scenes": [ { "id": "scene-1", "heading": "...", "badge": "...", "subheading": "...", "voiceover": "...", "visual_cue": "...", ... } ] }`;
 
   try {
     const result = await complete({
       system: systemPrompt,
       user: userPrompt,
       json: true,
-      maxTokens: 2000,
+      maxTokens: 3500,
     });
     const parsed = result.parsed;
     if (parsed?.scenes && Array.isArray(parsed.scenes)) {
       for (const rewritten of parsed.scenes) {
         const target = script.scenes.find((s) => s.id === rewritten.id);
-        if (target && typeof rewritten.voiceover === "string") {
-          target.voiceover = rewritten.voiceover;
-          target.duration_ms = estimateDurationMs(rewritten.voiceover, input.language);
-          target.on_screen_text = deriveOnScreenText(rewritten.voiceover, input.language);
+        if (!target) continue;
+        if (typeof rewritten.voiceover === "string" && rewritten.voiceover.trim()) {
+          target.voiceover = rewritten.voiceover.trim();
+          target.duration_ms = estimateDurationMs(target.voiceover, input.language);
+          target.on_screen_text = deriveOnScreenText(target.voiceover, input.language);
+        }
+        if (typeof rewritten.heading === "string" && rewritten.heading.trim()) {
+          target.heading = rewritten.heading.trim().slice(0, 180);
+        }
+        if (typeof rewritten.badge === "string" && rewritten.badge.trim()) {
+          target.badge = rewritten.badge.trim().slice(0, 100);
+        }
+        if (typeof rewritten.subheading === "string" && rewritten.subheading.trim()) {
+          target.subheading = rewritten.subheading.trim().slice(0, 190);
+        }
+        if (typeof rewritten.visual_cue === "string" && rewritten.visual_cue.trim()) {
+          target.visual_cue = rewritten.visual_cue.trim().slice(0, 110);
+        }
+        if (Array.isArray(rewritten.bullets) && rewritten.bullets.length > 0) {
+          target.bullets = rewritten.bullets
+            .filter((b) => typeof b === "string" && b.trim())
+            .slice(0, 6)
+            .map((b) => b.trim().slice(0, 190));
+        }
+        if (Array.isArray(rewritten.metrics) && rewritten.metrics.length > 0) {
+          target.metrics = rewritten.metrics
+            .filter((m) => m && typeof m.value === "string")
+            .slice(0, 4)
+            .map((m) => ({
+              value: m.value.trim().slice(0, 38),
+              ...(typeof m.label === "string" ? { label: m.label.trim().slice(0, 75) } : {}),
+            }));
+        }
+        if (typeof rewritten.codeSnippet === "string" && rewritten.codeSnippet.trim()) {
+          target.codeSnippet = rewritten.codeSnippet.trim().slice(0, 1800);
+        }
+        // Apply LLM-generated animated illustration if valid; strip default fallback illustration so only one renders
+        const hasNewIllus =
+          rewritten.flowArchitecture ||
+          rewritten.sequenceFlow ||
+          rewritten.hierarchyTree ||
+          rewritten.compareMatrix;
+        if (hasNewIllus) {
+          delete target.flowArchitecture;
+          delete target.sequenceFlow;
+          delete target.hierarchyTree;
+          delete target.compareMatrix;
+          const candidate = { ...target };
+          if (rewritten.flowArchitecture && typeof rewritten.flowArchitecture === "object") {
+            candidate.flowArchitecture = rewritten.flowArchitecture;
+          } else if (rewritten.sequenceFlow && typeof rewritten.sequenceFlow === "object") {
+            candidate.sequenceFlow = rewritten.sequenceFlow;
+          } else if (rewritten.hierarchyTree && typeof rewritten.hierarchyTree === "object") {
+            candidate.hierarchyTree = rewritten.hierarchyTree;
+          } else if (rewritten.compareMatrix && typeof rewritten.compareMatrix === "object") {
+            candidate.compareMatrix = rewritten.compareMatrix;
+          }
+          if (SceneSchema.safeParse(candidate).success) {
+            Object.assign(target, candidate);
+          }
         }
       }
       script.meta.generated_by = "template+llm";

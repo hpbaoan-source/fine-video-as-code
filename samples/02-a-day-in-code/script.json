@@ -22,9 +22,9 @@
         { "type": "icon", "name": "coffee", "size": 220 }
       ],
       "metrics": [
-        { "value": "1 Tách", "label": "CÀ PHÊ NGUYÊN CHẤT" },
+        { "value": "100%", "label": "NĂNG LƯỢNG BUỔI SÁNG" },
         { "value": "78 Task", "label": "JIRA TICKETS BACKLOG" },
-        { "value": "1 Mục tiêu", "label": "KHỞI ĐẦU TẬP TRUNG" }
+        { "value": "15 Phút", "label": "LẬP KẾ HOẠCH TẬP TRUNG" }
       ],
       "hierarchyTree": {
         "title": "Workspace Khởi động Buổi sáng (06:00 AM)",

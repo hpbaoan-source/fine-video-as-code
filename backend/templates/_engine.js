@@ -1133,14 +1133,43 @@ ${tokenCss()}
         metricValues: metricNodes.map((m) => {
           const valEl = m.querySelector(".fv-metric-value");
           const raw = valEl ? valEl.textContent.trim() : "";
-          const match = raw.match(/^([0-9.,]+)(.*)$/);
-          if (match && !raw.includes("/")) {
-            const num = Number.parseInt(match[1].replace(/[.,]/g, ""), 10);
-            return Number.isFinite(num) && num > 100
-              ? { el: valEl, original: raw, num, suffix: match[2] }
-              : null;
+          // Skip ratios, clock times, or version strings like "24/7", "9:00", "1.3"
+          if (!raw || raw.includes("/") || raw.includes(":")) return null;
+          const match = raw.match(/^([^0-9]*)([0-9][0-9.,]*)(.*)$/);
+          if (!match) return null;
+          const prefix = match[1] || "";
+          const numStr = match[2];
+          const suffix = match[3] || "";
+          const dotParts = numStr.split(".");
+          const commaParts = numStr.split(",");
+          let num = 0;
+          let decimals = 0;
+          let decSep = ".";
+          let useGrouping = false;
+          if (dotParts.length > 2 || (dotParts.length === 2 && dotParts[1].length === 3 && numStr.length >= 5)) {
+            // Dot thousands separator (e.g. "10.000.000" or "10.000")
+            num = Number.parseInt(numStr.replace(/\./g, ""), 10);
+            useGrouping = true;
+          } else if (commaParts.length > 2 || (commaParts.length === 2 && commaParts[1].length === 3 && numStr.length >= 5)) {
+            // Comma thousands separator (e.g. "10,000,000")
+            num = Number.parseInt(numStr.replace(/,/g, ""), 10);
+            useGrouping = true;
+          } else if (dotParts.length === 2) {
+            // Decimal with dot (e.g. "4.8", "99.9")
+            decimals = dotParts[1].length;
+            decSep = ".";
+            num = Number.parseFloat(numStr);
+          } else if (commaParts.length === 2) {
+            // Decimal with comma (e.g. "4,8")
+            decimals = commaParts[1].length;
+            decSep = ",";
+            num = Number.parseFloat(numStr.replace(",", "."));
+          } else {
+            num = Number.parseInt(numStr, 10);
+            useGrouping = num >= 1000;
           }
-          return null;
+          if (!Number.isFinite(num) || num <= 0) return null;
+          return { el: valEl, original: raw, prefix, num, decimals, decSep, useGrouping, suffix };
         }),
         diagSteps: Array.from(el.querySelectorAll("[data-diag-step-i]")),
         diagPills: Array.from(el.querySelectorAll("[data-diag-i]")),
@@ -1253,9 +1282,26 @@ ${tokenCss()}
 
       const mv = cache.metricValues ? cache.metricValues[mi] : null;
       if (mv && mv.el) {
-        const countK = easeOutCubic(clamp(local / 900, 0, 1));
-        const cur = Math.round(mv.num * countK);
-        mv.el.textContent = `${cur.toLocaleString("vi-VN")}${mv.suffix}`;
+        // Extended Odometer Counter: rolls smoothly over ~3.2s (or 55% of scene duration)
+        // using gentle easeOutQuad so viewers can clearly watch numbers & prizes climb up.
+        const countSpan = Math.min(4200, Math.max(2600, (durationMs || 5000) * 0.55));
+        const countDelay = 120 + i * 180;
+        const rawProgress = clamp((local - countDelay) / countSpan, 0, 1);
+        if (rawProgress >= 0.999) {
+          mv.el.textContent = mv.original;
+        } else {
+          const countK = easeOutQuad(rawProgress);
+          const curVal = mv.num * countK;
+          let formatted = "";
+          if (mv.decimals > 0) {
+            formatted = curVal.toFixed(mv.decimals);
+            if (mv.decSep === ",") formatted = formatted.replace(".", ",");
+          } else {
+            const intVal = Math.round(curVal);
+            formatted = mv.useGrouping ? intVal.toLocaleString("vi-VN") : String(intVal);
+          }
+          mv.el.textContent = `${mv.prefix}${formatted}${mv.suffix}`;
+        }
       }
     }
 
@@ -1290,10 +1336,11 @@ ${tokenCss()}
 
     // Animated Chart bars: smooth progress fill + numeric counter
     if (cache.chartBars && cache.chartBars.length) {
+      const chartSpan = Math.min(3600, Math.max(2400, (durationMs || 5000) * 0.5));
       for (let i = 0; i < cache.chartBars.length; i++) {
         const item = cache.chartBars[i];
-        const t = local - (180 + i * 160);
-        const k = easeOutCubic(clamp(t / 1100, 0, 1));
+        const t = local - (200 + i * 220);
+        const k = easeOutQuad(clamp(t / chartSpan, 0, 1));
         item.bar.style.width = `${(item.pct * k).toFixed(1)}%`;
         if (item.valEl) {
           const curVal = Number.isInteger(item.val)
