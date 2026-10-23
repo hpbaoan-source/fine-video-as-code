@@ -300,3 +300,45 @@ test("deterministic is optional and defaults to undefined", () => {
   assert.equal(GenerateInputSchema.parse({ ...base, deterministic: false }).deterministic, false);
   assert.equal(GenerateInputSchema.parse({ ...base, deterministic: true }).deterministic, true);
 });
+
+test("SceneSchema accepts rich animated illustrations (flowArchitecture, sequenceFlow, hierarchyTree, compareMatrix)", () => {
+  const s = SceneSchema.parse({
+    id: "scene-1",
+    voiceover: "Kiến trúc luồng dữ liệu thời gian thực",
+    duration_ms: 8000,
+    flowArchitecture: {
+      title: "Kafka Data Flow",
+      badge: "STREAMING",
+      sources: [{ icon: "📱", label: "Producer", sub: "App" }],
+      center: { icon: "⚡", title: "Topic: orders", partitions: ["P0", "P1"], cells: 8 },
+      targets: [{ icon: "⚙️", label: "Consumer", sub: "Group A" }],
+    },
+    sequenceFlow: {
+      title: "TLS Handshake",
+      actors: [
+        { icon: "💻", label: "Client" },
+        { icon: "🛡️", label: "Server" },
+      ],
+      messages: [
+        { from: 0, to: 1, tag: "SYN", label: "ClientHello", color: "brand" },
+        { from: 1, to: 0, tag: "ACK", label: "ServerHello", color: "ok" },
+      ],
+    },
+    hierarchyTree: {
+      title: "Topic Tree",
+      nodes: [
+        { level: 0, icon: "📂", label: "sensors" },
+        { level: 1, icon: "📍", label: "temperature", highlight: true, badge: "ACTIVE" },
+      ],
+    },
+    compareMatrix: {
+      title: "Kafka vs MQTT",
+      headers: ["Tiêu chí", "Kafka", "MQTT"],
+      rows: [["Throughput", "Triệu msg/s", "Nghìn msg/s"]],
+    },
+  });
+  assert.equal(s.flowArchitecture.center.partitions.length, 2);
+  assert.equal(s.sequenceFlow.messages.length, 2);
+  assert.equal(s.hierarchyTree.nodes.length, 2);
+  assert.equal(s.compareMatrix.rows.length, 1);
+});

@@ -109,12 +109,14 @@ function buildTemplateScript(input) {
   // have very different TTS runtimes.
   const scenes = pattern.map((p, i) => {
     const voiceover = generateVoiceoverForRole(input, p);
+    const illustration = generateIllustrationForRole(input, p);
     return {
       id: `scene-${i + 1}`,
       voiceover,
       duration_ms: estimateDurationMs(voiceover, input.language),
       visual_cues: generateVisualCuesForRole(input, p, i, pattern.length, tmpl.visualMix),
       on_screen_text: deriveOnScreenText(voiceover, input.language),
+      ...illustration,
       // The scene's structural role ("hook", "deep-dive", …).
       // Used as the LLM hint; stripped by ScriptSchema.parse.
       role_hint: p.role,
@@ -198,6 +200,63 @@ function generateVisualCuesForRole(input, p, idx, total, visualMix) {
     });
   }
   return cues;
+}
+
+function generateIllustrationForRole(input, p) {
+  const isVi = input.language === "vi";
+  if (p.role === "concept" || p.role === "solution") {
+    return {
+      flowArchitecture: {
+        title: isVi ? `Kiến trúc ${input.topic}` : `${input.topic} Architecture`,
+        badge: "LIVE DATA FLOW",
+        sources: [
+          { icon: "📱", label: "Client", sub: "Input" },
+          { icon: "🖥️", label: "Service", sub: "Producer" },
+        ],
+        center: {
+          icon: "⚡",
+          title: input.topic.slice(0, 28),
+          partitions: ["P0", "P1", "P2"],
+          cells: 10,
+          sub: isVi ? "Xử lý luồng dữ liệu thời gian thực" : "Real-time stream processing",
+        },
+        targets: [
+          { icon: "⚙️", label: "Worker", sub: "Consumer" },
+          { icon: "📊", label: "Output", sub: "Result" },
+        ],
+      },
+    };
+  }
+  if (p.role === "deep-dive" || p.role === "step-2") {
+    return {
+      sequenceFlow: {
+        title: isVi ? "Luồng tương tác chi tiết" : "Protocol Sequence Flow",
+        actors: [
+          { icon: "💻", label: "Client", sub: "Sender" },
+          { icon: "🛡️", label: "Core Engine", sub: "Processor" },
+        ],
+        messages: [
+          { from: 0, to: 1, tag: "REQ", label: isVi ? "Gửi yêu cầu khởi tạo" : "Send initial request", color: "brand" },
+          { from: 1, to: 0, tag: "ACK", label: isVi ? "Xác thực & cấp phiên" : "Verify & grant session", color: "accent" },
+          { from: 0, to: 1, tag: "DATA", label: isVi ? "Truyền dữ liệu đồng bộ" : "Stream synchronized payload", color: "ok" },
+        ],
+      },
+    };
+  }
+  if (p.role === "example" || p.role === "step-3") {
+    return {
+      hierarchyTree: {
+        title: isVi ? "Cấu trúc phân cấp" : "System Hierarchy",
+        nodes: [
+          { level: 0, icon: "📂", label: "root", badge: "master" },
+          { level: 1, icon: "🌿", label: "core-pipeline", highlight: true, badge: "active" },
+          { level: 2, icon: "⚡", label: "worker-pool", badge: "running" },
+          { level: 1, icon: "✅", label: "output-verified", badge: "100% OK" },
+        ],
+      },
+    };
+  }
+  return {};
 }
 
 function deriveOnScreenText(voiceover, language) {
@@ -368,6 +427,10 @@ export async function step1Script(input, { onProgress, onLog } = {}) {
       ...(s.metrics ? { metrics: s.metrics } : {}),
       ...(s.codeSnippet ? { codeSnippet: s.codeSnippet } : {}),
       ...(s.diagram ? { diagram: s.diagram } : {}),
+      ...(s.flowArchitecture ? { flowArchitecture: s.flowArchitecture } : {}),
+      ...(s.sequenceFlow ? { sequenceFlow: s.sequenceFlow } : {}),
+      ...(s.hierarchyTree ? { hierarchyTree: s.hierarchyTree } : {}),
+      ...(s.compareMatrix ? { compareMatrix: s.compareMatrix } : {}),
     }));
     // Spread the requested duration over the preset scenes and
     // clamp every scene into the schema range.

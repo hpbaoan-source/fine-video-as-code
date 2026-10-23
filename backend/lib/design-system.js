@@ -94,8 +94,22 @@ function hasBody(scene) {
   );
 }
 
+function hasIllustration(scene) {
+  return Boolean(
+    scene.flowArchitecture ||
+      scene.sequenceFlow ||
+      scene.hierarchyTree ||
+      scene.compareMatrix
+  );
+}
+
 function hasHero(scene) {
-  return (scene.visual_cues || []).some((c) => c && (c.type === "icon" || c.type === "image"));
+  return (
+    hasIllustration(scene) ||
+    (scene.visual_cues || []).some(
+      (c) => c && (c.type === "icon" || c.type === "image" || c.type === "chart")
+    )
+  );
 }
 
 /**
@@ -105,6 +119,7 @@ function hasHero(scene) {
  */
 export function pickLayout(scene, index, total, template) {
   if (LAYOUTS.includes(scene.layout)) return scene.layout;
+  if (hasIllustration(scene)) return "split";
   const body = hasBody(scene);
   const hero = hasHero(scene);
   if (index === 0 && (!body || template === "promo")) return "title";

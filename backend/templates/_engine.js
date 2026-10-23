@@ -158,6 +158,16 @@ ${tokenCss()}
     body { position: relative; }
 
     .fv-stage { position: absolute; inset: 0; }
+    .fv-stage::before {
+      content: "";
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
 
     /* One scene fills the frame. The bottom band is reserved for
        the subtitle bar so no content can ever slide under it. */
@@ -166,6 +176,7 @@ ${tokenCss()}
       display: flex; flex-direction: column;
       padding: var(--fv-safe-y) var(--fv-safe-x) calc(var(--fv-subbar-min) + 16px);
       opacity: 0; visibility: hidden; pointer-events: none;
+      z-index: 1;
     }
     .fv-scene-grid {
       flex: 1; min-height: 0;
@@ -175,6 +186,9 @@ ${tokenCss()}
     }
     .fv-scene[data-layout="split"] .fv-scene-grid {
       grid-template-columns: 7fr 5fr; align-items: center;
+    }
+    .fv-scene[data-has-illustration="1"][data-layout="split"] .fv-scene-grid {
+      grid-template-columns: 5.2fr 6.8fr; align-items: center;
     }
     .fv-scene[data-layout="split"] .fv-col-content { justify-self: start; }
     .fv-scene[data-layout="split"] .fv-col-visual { justify-self: center; }
@@ -322,7 +336,8 @@ ${tokenCss()}
         gap: var(--fv-space-6);
         transform-style: preserve-3d;
       }
-      .fv-scene[data-layout="split"] .fv-scene-grid {
+      .fv-scene[data-layout="split"] .fv-scene-grid,
+      .fv-scene[data-has-illustration="1"][data-layout="split"] .fv-scene-grid {
         grid-template-columns: 1fr;
         grid-template-rows: auto auto;
         gap: var(--fv-space-6);
@@ -466,23 +481,28 @@ ${tokenCss()}
     const unit = opts.unit ? String(opts.unit) : "";
     const labelWidth = Number(opts.labelWidth) > 0 ? Number(opts.labelWidth) : 200;
     const wrap = document.createElement("div");
-    wrap.className = "chart";
-    wrap.style.cssText = "display:flex;flex-direction:column;gap:14px;width:100%;";
+    wrap.className = "chart fv-chart-card";
+    wrap.style.cssText = "display:flex;flex-direction:column;gap:16px;width:100%;min-width:560px;background:rgba(15,20,32,0.72);border:1px solid var(--fv-border-strong);border-radius:16px;padding:24px 28px;box-shadow:0 20px 50px rgba(0,0,0,0.4);";
     labels.forEach((label, i) => {
       const pct = Math.max(0, Math.min(100, (values[i] / max) * 100));
       const row = document.createElement("div");
       row.style.cssText = "display:flex;align-items:center;gap:18px;";
+      row.setAttribute("data-chart-row", String(i));
       const lbl = document.createElement("div");
       lbl.textContent = label;
-      lbl.style.cssText = `width:${labelWidth}px;color:var(--fv-text-muted);font-size:20px;text-align:right;`;
+      lbl.style.cssText = `width:${labelWidth}px;color:var(--fv-text-muted);font-size:19px;font-weight:600;text-align:right;`;
       const bg = document.createElement("div");
-      bg.style.cssText = "flex:1;height:22px;background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;";
+      bg.style.cssText = "flex:1;height:24px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.10);border-radius:8px;overflow:hidden;position:relative;";
       const bar = document.createElement("div");
-      bar.style.cssText = `width:${pct.toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--fv-brand),var(--fv-accent));`;
+      bar.setAttribute("data-chart-bar", String(i));
+      bar.setAttribute("data-chart-pct", pct.toFixed(2));
+      bar.style.cssText = `width:${pct.toFixed(1)}%;height:100%;background:linear-gradient(90deg,var(--fv-brand),var(--fv-accent));border-radius:6px;box-shadow:0 0 16px var(--fv-brand-soft);`;
       bg.appendChild(bar);
       const val = document.createElement("div");
+      val.setAttribute("data-chart-val", String(values[i]));
+      val.setAttribute("data-chart-unit", unit);
       val.textContent = `${values[i]}${unit}`;
-      val.style.cssText = "width:110px;color:var(--fv-accent);font-size:20px;font-weight:700;";
+      val.style.cssText = "width:110px;color:var(--fv-accent);font-size:20px;font-weight:800;font-family:var(--fv-font-mono);";
       row.appendChild(lbl);
       row.appendChild(bg);
       row.appendChild(val);
@@ -552,14 +572,25 @@ ${tokenCss()}
     return "";
   }
 
+  function hasAnimatedIllustration(scene) {
+    return Boolean(
+      scene &&
+        (scene.flowArchitecture ||
+          scene.sequenceFlow ||
+          scene.hierarchyTree ||
+          scene.compareMatrix)
+    );
+  }
+
   // ── Layout decision ────────────────────────────────────────
   //
   // The server normally fills scene.layout (see
   // backend/lib/design-system.js). This fallback keeps hand-made
   // templates working when the field is missing.
   function deriveLayout(scene) {
+    if (hasAnimatedIllustration(scene)) return "split";
     const cues = (scene && scene.visual_cues) || [];
-    const hasHero = cues.some((c) => c && (c.type === "icon" || c.type === "image"));
+    const hasHero = cues.some((c) => c && (c.type === "icon" || c.type === "image" || c.type === "chart"));
     const hasBody = Boolean(
       (scene.bullets && scene.bullets.length) ||
         (scene.metrics && scene.metrics.length) ||
@@ -629,13 +660,14 @@ ${tokenCss()}
     if (!snippet) return "";
     const lines = String(snippet)
       .split(/\r?\n/)
-      .map((raw) => {
+      .map((raw, i) => {
         const safe = escapeHtml(raw);
-        if (/^\s*\$\s/.test(raw)) return `<span class="fv-code-cmd">${safe}</span>`;
-        if (/^\s*#\s/.test(raw)) return `<span class="fv-code-comment">${safe}</span>`;
-        if (/^\s*(✓|OK)\s/.test(raw)) return `<span class="fv-code-ok">${safe}</span>`;
-        if (/^\s*⚠\s/.test(raw)) return `<span class="fv-code-warn">${safe}</span>`;
-        return `<span>${safe}</span>`;
+        let cls = "";
+        if (/^\s*\$\s/.test(raw)) cls = "fv-code-cmd";
+        else if (/^\s*#\s/.test(raw)) cls = "fv-code-comment";
+        else if (/^\s*(✓|OK|🚀)\s/.test(raw)) cls = "fv-code-ok";
+        else if (/^\s*⚠\s/.test(raw)) cls = "fv-code-warn";
+        return `<span class="fv-code-line ${cls}" data-code-line-i="${i}">${safe}</span>`;
       })
       .join("\n");
     return `<div class="fv-snippet">
@@ -676,6 +708,247 @@ ${tokenCss()}
       stepsHtml = `<ol class="fv-diag-steps">${items}</ol>`;
     }
     return `<div class="fv-diagram">${nodesHtml}${stepsHtml}</div>`;
+  }
+
+  // ── Rich Animated Illustrations (time-driven in tickScene) ─
+
+  // Helper: compute vertical center Y coordinates on a 290px stage
+  function nodeYPositions(count, height = 290) {
+    if (count <= 0) return [];
+    if (count === 1) return [height / 2];
+    if (count === 2) return [85, 205];
+    if (count === 3) return [52, 145, 238];
+    return [38, 109, 181, 252];
+  }
+
+  // 1. Flow Architecture (Producers -> Hub/Partitions -> Consumers + glowing moving packets)
+  function renderFlowArchitecture(arch) {
+    if (!arch || !arch.center) return "";
+    const sources = (arch.sources || []).slice(0, 4);
+    const targets = (arch.targets || []).slice(0, 4);
+    const center = arch.center;
+    const srcYs = nodeYPositions(sources.length, 290);
+    const dstYs = nodeYPositions(targets.length, 290);
+    const hubY = 145;
+
+    const srcNodesHtml = sources
+      .map((s, i) => {
+        const y = srcYs[i] - 34;
+        return `<div class="fv-flow-node fv-flow-src" data-flow-node-i="${i}" style="left:10px;top:${y}px;">
+          ${s.icon ? `<span class="fv-flow-ico">${escapeHtml(s.icon)}</span>` : ""}
+          <div class="fv-flow-txt">
+            <div class="fv-flow-lbl">${escapeHtml(s.label)}</div>
+            ${s.sub ? `<div class="fv-flow-sub">${escapeHtml(s.sub)}</div>` : ""}
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    const dstNodesHtml = targets
+      .map((t, i) => {
+        const y = dstYs[i] - 34;
+        return `<div class="fv-flow-node fv-flow-dst" data-flow-node-i="${sources.length + i}" style="left:552px;top:${y}px;">
+          ${t.icon ? `<span class="fv-flow-ico">${escapeHtml(t.icon)}</span>` : ""}
+          <div class="fv-flow-txt">
+            <div class="fv-flow-lbl">${escapeHtml(t.label)}</div>
+            ${t.sub ? `<div class="fv-flow-sub">${escapeHtml(t.sub)}</div>` : ""}
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    let centerHtml = "";
+    const parts = center.partitions || [];
+    const cellCount = Math.min(14, Math.max(6, Number(center.cells) || 10));
+    if (parts.length > 0) {
+      const partRows = parts
+        .slice(0, 4)
+        .map((pName, pIdx) => {
+          const cells = Array.from({ length: cellCount }, (_, cIdx) => `<span class="fv-part-cell" data-cell-i="${cIdx}"></span>`).join("");
+          return `<div class="fv-part-row" data-part-row="${pIdx}">
+            <span class="fv-part-lbl">${escapeHtml(pName)}</span>
+            <div class="fv-part-cells">${cells}</div>
+          </div>`;
+        })
+        .join("");
+      centerHtml = `<div class="fv-flow-hub fv-flow-hub-topic" data-flow-hub style="left:215px;top:32px;width:270px;height:226px;">
+        <div class="fv-flow-hub-head">
+          <span>${center.icon ? escapeHtml(center.icon) + " " : ""}${escapeHtml(center.title)}</span>
+          <span class="fv-flow-tag">${parts.length} lanes</span>
+        </div>
+        <div class="fv-part-list">${partRows}</div>
+        ${center.sub ? `<div class="fv-flow-hub-foot">${escapeHtml(center.sub)}</div>` : ""}
+      </div>`;
+    } else {
+      centerHtml = `<div class="fv-flow-hub fv-flow-hub-broker" data-flow-hub style="left:230px;top:46px;width:240px;height:198px;">
+        <div class="fv-flow-broker-ico">${escapeHtml(center.icon || "⚡")}</div>
+        <div class="fv-flow-broker-title">${escapeHtml(center.title)}</div>
+        ${center.sub ? `<div class="fv-flow-broker-sub">${escapeHtml(center.sub)}</div>` : ""}
+      </div>`;
+    }
+
+    // Build SVG connector lines and serialize path coords for deterministic packet flight
+    const paths = [];
+    const svgLines = [];
+    const hubLeftX = parts.length > 0 ? 215 : 230;
+    const hubRightX = parts.length > 0 ? 485 : 470;
+
+    sources.forEach((_, i) => {
+      const x1 = 152;
+      const y1 = srcYs[i];
+      const x2 = hubLeftX;
+      const y2 = parts.length > 0 ? 85 + (i % parts.length) * 44 : hubY;
+      paths.push({ leg: 1, x1, y1, x2, y2 });
+      svgLines.push(
+        `<path class="fv-flow-edge" d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}" />`
+      );
+    });
+    targets.forEach((_, i) => {
+      const x1 = hubRightX;
+      const y1 = parts.length > 0 ? 85 + (i % parts.length) * 44 : hubY;
+      const x2 = 552;
+      const y2 = dstYs[i];
+      paths.push({ leg: 2, x1, y1, x2, y2 });
+      svgLines.push(
+        `<path class="fv-flow-edge fv-flow-edge-out" d="M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}" />`
+      );
+    });
+
+    const packetsHtml = Array.from(
+      { length: 8 },
+      (_, i) => `<div class="fv-flow-packet ${i % 2 === 1 ? "fv-pkt-alt" : ""}" data-pkt-i="${i}"></div>`
+    ).join("");
+
+    const headHtml =
+      arch.title || arch.badge
+        ? `<div class="fv-illus-head">
+            ${arch.title ? `<span class="fv-illus-title">${escapeHtml(arch.title)}</span>` : ""}
+            ${arch.badge ? `<span class="fv-illus-badge">${escapeHtml(arch.badge)}</span>` : ""}
+          </div>`
+        : "";
+
+    return `<div class="fv-illus-card fv-flow-arch" data-flow-paths='${escapeHtml(JSON.stringify(paths))}'>
+      ${headHtml}
+      <div class="fv-flow-canvas">
+        <svg class="fv-flow-svg" viewBox="0 0 704 290" preserveAspectRatio="none">
+          ${svgLines.join("\n          ")}
+        </svg>
+        ${srcNodesHtml}
+        ${centerHtml}
+        ${dstNodesHtml}
+        <div class="fv-flow-packets">${packetsHtml}</div>
+      </div>
+      ${arch.caption ? `<div class="fv-illus-foot">${escapeHtml(arch.caption)}</div>` : ""}
+    </div>`;
+  }
+
+  // 2. Sequence Flow (Animated protocol handshake / timeline between 2-3 actors)
+  function renderSequenceFlow(seq) {
+    if (!seq || !seq.actors || seq.actors.length < 2) return "";
+    const actors = seq.actors.slice(0, 3);
+    const messages = (seq.messages || []).slice(0, 6);
+    const xPcts = actors.length === 2 ? [18, 82] : [16, 50, 84];
+
+    const actorsHtml = actors
+      .map(
+        (a, i) => `<div class="fv-seq-actor" style="left:${xPcts[i]}%;">
+          <div class="fv-seq-actor-box">
+            ${a.icon ? `<span class="fv-seq-actor-ico">${escapeHtml(a.icon)}</span>` : ""}
+            <span class="fv-seq-actor-lbl">${escapeHtml(a.label)}</span>
+          </div>
+          ${a.sub ? `<div class="fv-seq-actor-sub">${escapeHtml(a.sub)}</div>` : ""}
+        </div>`
+      )
+      .join("");
+
+    const lifelinesHtml = actors
+      .map((_, i) => `<div class="fv-seq-lifeline" style="left:${xPcts[i]}%;"></div>`)
+      .join("");
+
+    const lanesHtml = messages
+      .map((m, i) => {
+        const fromIdx = clamp(Number(m.from) || 0, 0, actors.length - 1);
+        const toIdx = clamp(Number(m.to) || 0, 0, actors.length - 1);
+        const x1 = xPcts[fromIdx];
+        const x2 = xPcts[toIdx === fromIdx ? (fromIdx + 1) % actors.length : toIdx];
+        const left = Math.min(x1, x2);
+        const width = Math.abs(x2 - x1);
+        const dir = x2 >= x1 ? 1 : -1;
+        const colorCls = m.color ? `fv-seq-col-${m.color}` : i % 2 === 0 ? "fv-seq-col-brand" : "fv-seq-col-accent";
+        return `<div class="fv-seq-lane ${colorCls}" data-seq-lane="${i}" data-seq-dir="${dir}" style="margin-left:${left}%;width:${width}%;">
+          <div class="fv-seq-meta">
+            ${m.tag ? `<span class="fv-seq-tag">${escapeHtml(m.tag)}</span>` : `<span class="fv-seq-step">0${i + 1}</span>`}
+            <span class="fv-seq-lbl">${escapeHtml(m.label)}</span>
+          </div>
+          <div class="fv-seq-track">
+            <div class="fv-seq-fill" data-seq-fill="${i}"></div>
+            <div class="fv-seq-head ${dir === 1 ? "fv-seq-head-r" : "fv-seq-head-l"}"></div>
+            <div class="fv-seq-dot" data-seq-dot="${i}"></div>
+          </div>
+        </div>`;
+      })
+      .join("");
+
+    return `<div class="fv-illus-card fv-seq-flow">
+      ${seq.title ? `<div class="fv-illus-head"><span class="fv-illus-title">${escapeHtml(seq.title)}</span></div>` : ""}
+      <div class="fv-seq-stage">
+        <div class="fv-seq-actors">${actorsHtml}</div>
+        <div class="fv-seq-body">
+          ${lifelinesHtml}
+          <div class="fv-seq-lanes">${lanesHtml}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // 3. Hierarchy Tree (Topic tree / commit history / directory structure with live scanner)
+  function renderHierarchyTree(tree) {
+    if (!tree || !tree.nodes || !tree.nodes.length) return "";
+    const rowsHtml = tree.nodes
+      .slice(0, 10)
+      .map((n, i) => {
+        const lvl = clamp(Number(n.level) || 0, 0, 4);
+        const indent = lvl * 28;
+        const prefix = lvl > 0 ? `<span class="fv-tree-branch">├─</span>` : "";
+        return `<div class="fv-tree-row ${n.highlight ? "fv-tree-hl" : ""}" data-tree-row="${i}" data-tree-hl="${n.highlight ? "1" : "0"}" style="padding-left:${14 + indent}px;">
+          ${prefix}
+          ${n.icon ? `<span class="fv-tree-ico">${escapeHtml(n.icon)}</span>` : ""}
+          <span class="fv-tree-lbl">${escapeHtml(n.label)}</span>
+          ${n.badge ? `<span class="fv-tree-badge">${escapeHtml(n.badge)}</span>` : ""}
+        </div>`;
+      })
+      .join("");
+
+    return `<div class="fv-illus-card fv-tree-card">
+      ${tree.title ? `<div class="fv-illus-head"><span class="fv-illus-title">${escapeHtml(tree.title)}</span></div>` : ""}
+      <div class="fv-tree-list">${rowsHtml}</div>
+      ${tree.footer ? `<div class="fv-illus-foot">${escapeHtml(tree.footer)}</div>` : ""}
+    </div>`;
+  }
+
+  // 4. Compare Matrix (Multi-column animated comparison table)
+  function renderCompareMatrix(matrix) {
+    if (!matrix || !matrix.headers || !matrix.rows) return "";
+    const ths = matrix.headers
+      .map((h, i) => `<th class="fv-cmp-th fv-cmp-c${i}">${escapeHtml(h)}</th>`)
+      .join("");
+    const trs = matrix.rows
+      .slice(0, 7)
+      .map((row, rIdx) => {
+        const tds = row
+          .map((cell, cIdx) => `<td class="fv-cmp-td fv-cmp-c${cIdx}">${escapeHtml(cell)}</td>`)
+          .join("");
+        return `<tr class="fv-cmp-tr" data-cmp-row="${rIdx}">${tds}</tr>`;
+      })
+      .join("");
+
+    return `<div class="fv-illus-card fv-compare-card">
+      ${matrix.title ? `<div class="fv-illus-head"><span class="fv-illus-title">${escapeHtml(matrix.title)}</span></div>` : ""}
+      <table class="fv-cmp-table">
+        <thead><tr>${ths}</tr></thead>
+        <tbody>${trs}</tbody>
+      </table>
+    </div>`;
   }
 
   // ── Subtitle bar with karaoke caption ──────────────────────
@@ -738,8 +1011,19 @@ ${tokenCss()}
     const heroSize = opts.heroSize || (layout === "title" ? 200 : 168);
     const visual = [];
 
+    const richVisual = [
+      renderFlowArchitecture(s.flowArchitecture),
+      renderSequenceFlow(s.sequenceFlow),
+      renderHierarchyTree(s.hierarchyTree),
+      renderCompareMatrix(s.compareMatrix),
+    ]
+      .filter(Boolean)
+      .join("\n        ");
+
     if (opts.visualHtml !== undefined) {
       if (opts.visualHtml) visual.push(opts.visualHtml);
+    } else if (richVisual) {
+      visual.push(richVisual);
     } else if (iconCue) {
       const holder = document.createElement("div");
       holder.appendChild(renderIcon(iconCue.name || "lightbulb", { size: heroSize }));
@@ -787,6 +1071,9 @@ ${tokenCss()}
       el.className = "fv-scene";
       el.dataset.sceneIndex = String(i);
       el.dataset.layout = ["title", "split", "stack"].includes(s.layout) ? s.layout : deriveLayout(s);
+      if (hasAnimatedIllustration(s)) {
+        el.dataset.hasIllustration = "1";
+      }
       el.innerHTML = mountScene(s, i, scenes.length);
       stageEl.appendChild(el);
       return el;
@@ -829,6 +1116,13 @@ ${tokenCss()}
   function cacheSceneNodes(sceneEls) {
     for (const el of sceneEls) {
       const metricNodes = Array.from(el.querySelectorAll("[data-metric-i]"));
+      const flowArchEl = el.querySelector(".fv-flow-arch");
+      let flowPaths = [];
+      if (flowArchEl && flowArchEl.dataset.flowPaths) {
+        try {
+          flowPaths = JSON.parse(flowArchEl.dataset.flowPaths);
+        } catch {}
+      }
       el.__fv = {
         grid: el.querySelector(".fv-scene-grid"),
         eq: Array.from(el.querySelectorAll(".fv-eq-bar")),
@@ -850,6 +1144,34 @@ ${tokenCss()}
         }),
         diagSteps: Array.from(el.querySelectorAll("[data-diag-step-i]")),
         diagPills: Array.from(el.querySelectorAll("[data-diag-i]")),
+        codeLines: Array.from(el.querySelectorAll("[data-code-line-i]")),
+        chartBars: Array.from(el.querySelectorAll("[data-chart-bar]")).map((bar) => {
+          const row = bar.closest("[data-chart-row]");
+          const valEl = row ? row.querySelector("[data-chart-val]") : null;
+          return {
+            bar,
+            pct: Number(bar.getAttribute("data-chart-pct")) || 0,
+            valEl,
+            val: valEl ? Number(valEl.getAttribute("data-chart-val")) || 0 : 0,
+            unit: valEl ? valEl.getAttribute("data-chart-unit") || "" : "",
+          };
+        }),
+        flowNodes: Array.from(el.querySelectorAll("[data-flow-node-i]")),
+        flowHub: el.querySelector("[data-flow-hub]"),
+        flowEdges: Array.from(el.querySelectorAll(".fv-flow-edge")),
+        flowPackets: Array.from(el.querySelectorAll("[data-pkt-i]")),
+        flowPartRows: Array.from(el.querySelectorAll("[data-part-row]")).map((r) =>
+          Array.from(r.querySelectorAll(".fv-part-cell"))
+        ),
+        flowPaths,
+        seqLanes: Array.from(el.querySelectorAll("[data-seq-lane]")).map((lane) => ({
+          lane,
+          dir: Number(lane.getAttribute("data-seq-dir")) || 1,
+          fill: lane.querySelector("[data-seq-fill]"),
+          dot: lane.querySelector("[data-seq-dot]"),
+        })),
+        treeRows: Array.from(el.querySelectorAll("[data-tree-row]")),
+        cmpRows: Array.from(el.querySelectorAll("[data-cmp-row]")),
         subbar: el.querySelector(".fv-subbar"),
       };
     }
@@ -954,6 +1276,147 @@ ${tokenCss()}
       p.style.opacity = k.toFixed(3);
       p.style.transform = `scale(${(0.85 + 0.15 * k).toFixed(3)})`;
     }
+
+    // Terminal code lines: 180ms stagger reveal
+    if (cache.codeLines && cache.codeLines.length) {
+      for (const line of cache.codeLines) {
+        const i = Number(line.dataset.codeLineI) || 0;
+        const t = local - (200 + i * 220);
+        const k = clamp(t / 240, 0, 1);
+        line.style.opacity = k.toFixed(3);
+        line.style.transform = `translateX(${((1 - easeOutQuad(k)) * -12).toFixed(1)}px)`;
+      }
+    }
+
+    // Animated Chart bars: smooth progress fill + numeric counter
+    if (cache.chartBars && cache.chartBars.length) {
+      for (let i = 0; i < cache.chartBars.length; i++) {
+        const item = cache.chartBars[i];
+        const t = local - (180 + i * 160);
+        const k = easeOutCubic(clamp(t / 1100, 0, 1));
+        item.bar.style.width = `${(item.pct * k).toFixed(1)}%`;
+        if (item.valEl) {
+          const curVal = Number.isInteger(item.val)
+            ? Math.round(item.val * k)
+            : (item.val * k).toFixed(1);
+          item.valEl.textContent = `${curVal}${item.unit}`;
+        }
+      }
+    }
+
+    // 1. Flow Architecture continuous simulation
+    if (cache.flowHub || (cache.flowNodes && cache.flowNodes.length)) {
+      for (const node of cache.flowNodes) {
+        const i = Number(node.dataset.flowNodeI) || 0;
+        const k = easeOutBack(clamp((local - i * 90) / 300, 0, 1));
+        node.style.opacity = clamp(k * 1.3, 0, 1).toFixed(3);
+        node.style.transform = `scale(${(0.85 + 0.15 * k).toFixed(3)})`;
+      }
+      if (cache.flowHub) {
+        const pulse = 1 + 0.025 * Math.sin(local * 0.0055);
+        cache.flowHub.style.transform = `scale(${pulse.toFixed(4)})`;
+      }
+      for (const edge of cache.flowEdges) {
+        edge.style.strokeDashoffset = `${(-(local * 0.045) % 24).toFixed(1)}px`;
+      }
+      // Partition / queue cells filling progressively over time
+      if (cache.flowPartRows && cache.flowPartRows.length) {
+        for (let r = 0; r < cache.flowPartRows.length; r++) {
+          const cells = cache.flowPartRows[r];
+          const speed = 1.15 - r * 0.14;
+          const filledCount = Math.min(
+            cells.length,
+            Math.max(1, Math.floor(frac * cells.length * speed + (r === 0 ? 1 : 0)))
+          );
+          for (let c = 0; c < cells.length; c++) {
+            cells[c].classList.toggle("filled", c < filledCount);
+          }
+        }
+      }
+      // Continuous message packet flight along SVG paths
+      if (cache.flowPackets && cache.flowPackets.length && cache.flowPaths.length) {
+        const cycleMs = 1100;
+        for (let p = 0; p < cache.flowPackets.length; p++) {
+          const pkt = cache.flowPackets[p];
+          const pathObj = cache.flowPaths[p % cache.flowPaths.length];
+          const offsetMs = p * 260;
+          const tFlight = local - 200 - offsetMs;
+          if (tFlight < 0) {
+            pkt.style.opacity = "0";
+            continue;
+          }
+          const k = (tFlight % cycleMs) / cycleMs;
+          // Cubic bezier midpoint curve interpolation
+          const x = pathObj.x1 + (pathObj.x2 - pathObj.x1) * k;
+          const smoothK = k * k * (3 - 2 * k);
+          const y = pathObj.y1 + (pathObj.y2 - pathObj.y1) * smoothK;
+          const op = k < 0.15 ? k / 0.15 : k > 0.85 ? (1 - k) / 0.15 : 1;
+          pkt.style.left = `${(x - 7).toFixed(1)}px`;
+          pkt.style.top = `${(y - 7).toFixed(1)}px`;
+          pkt.style.opacity = op.toFixed(3);
+        }
+      }
+    }
+
+    // 2. Sequence Flow (Protocol handshake progressive arrows & travelling packet dots)
+    if (cache.seqLanes && cache.seqLanes.length) {
+      const n = cache.seqLanes.length;
+      const startWindow = 0.06;
+      const spanWindow = 0.82;
+      const slotSize = spanWindow / n;
+      for (let i = 0; i < n; i++) {
+        const item = cache.seqLanes[i];
+        const laneStart = startWindow + i * slotSize;
+        const laneProgress = clamp((frac - laneStart) / slotSize, 0, 1);
+        const eased = easeOutCubic(laneProgress);
+        const isActive = laneProgress > 0 && laneProgress < 1;
+        const isDone = laneProgress >= 1;
+        item.lane.style.opacity = laneProgress <= 0 ? "0.28" : "1";
+        item.lane.classList.toggle("fv-seq-active", isActive);
+        item.lane.classList.toggle("fv-seq-done", isDone);
+        if (item.fill) {
+          item.fill.style.width = `${(eased * 100).toFixed(1)}%`;
+        }
+        if (item.dot) {
+          if (isActive) {
+            const posPct = item.dir === 1 ? eased * 100 : (1 - eased) * 100;
+            item.dot.style.left = `${posPct.toFixed(1)}%`;
+            item.dot.style.opacity = "1";
+          } else {
+            item.dot.style.opacity = "0";
+          }
+        }
+      }
+    }
+
+    // 3. Hierarchy Tree stagger + active scanner highlight
+    if (cache.treeRows && cache.treeRows.length) {
+      const activeScanIdx = Math.floor(frac * cache.treeRows.length * 1.15) % cache.treeRows.length;
+      for (let i = 0; i < cache.treeRows.length; i++) {
+        const row = cache.treeRows[i];
+        const t = local - i * 100;
+        const k = clamp(t / 260, 0, 1);
+        const eased = easeOutBack(k);
+        row.style.opacity = clamp(k * 1.35, 0, 1).toFixed(3);
+        row.style.transform = `translateX(${((1 - eased) * -20).toFixed(1)}px)`;
+        const isPresetHl = row.getAttribute("data-tree-hl") === "1";
+        row.classList.toggle("fv-tree-scan", i === activeScanIdx || isPresetHl);
+      }
+    }
+
+    // 4. Compare Matrix row stagger + spotlight sweep
+    if (cache.cmpRows && cache.cmpRows.length) {
+      const n = cache.cmpRows.length;
+      const activeRow = Math.min(n - 1, Math.floor(frac * n * 1.1));
+      for (let i = 0; i < n; i++) {
+        const row = cache.cmpRows[i];
+        const t = local - i * 130;
+        const k = clamp(t / 280, 0, 1);
+        row.style.opacity = k.toFixed(3);
+        row.style.transform = `translateY(${((1 - easeOutQuad(k)) * 14).toFixed(1)}px)`;
+        row.classList.toggle("fv-cmp-active", i === activeRow && local > 500);
+      }
+    }
   }
 
   // ── Seeker ─────────────────────────────────────────────────
@@ -1055,6 +1518,216 @@ ${tokenCss()}
     .fv-scene[data-layout="title"] .fv-badge { align-self: center; }
     .fv-cue-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fv-brand); }
     .fv-image { display: flex; align-items: center; justify-content: center; }
+    .fv-code-line { display: inline-block; width: 100%; }
+
+    /* Shared Illustration Container */
+    .fv-illus-card {
+      background: linear-gradient(155deg, rgba(17, 23, 38, 0.88), rgba(10, 14, 24, 0.94));
+      border: 1px solid var(--fv-border-strong);
+      border-radius: 18px;
+      padding: 20px 22px;
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(10px);
+      width: 748px;
+      max-width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+    .fv-illus-head {
+      display: flex; align-items: center; justify-content: space-between;
+      border-bottom: 1px solid var(--fv-border); padding-bottom: 10px;
+    }
+    .fv-illus-title {
+      font-size: 16px; font-weight: 800; letter-spacing: 0.06em;
+      text-transform: uppercase; color: var(--fv-text);
+    }
+    .fv-illus-badge {
+      padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      background: var(--fv-brand-soft); border: 1px solid var(--fv-brand); color: var(--fv-text);
+    }
+    .fv-illus-foot {
+      font-size: 14px; color: var(--fv-text-muted); text-align: center;
+      border-top: 1px solid var(--fv-border); padding-top: 8px;
+    }
+
+    /* 1. Flow Architecture */
+    .fv-flow-canvas {
+      position: relative; width: 704px; height: 290px; margin: 0 auto;
+    }
+    .fv-flow-svg {
+      position: absolute; inset: 0; width: 704px; height: 290px; pointer-events: none;
+    }
+    .fv-flow-edge {
+      fill: none; stroke: var(--fv-brand); stroke-width: 2.2;
+      stroke-dasharray: 7 7; opacity: 0.55;
+    }
+    .fv-flow-edge-out {
+      stroke: var(--fv-accent);
+    }
+    .fv-flow-node {
+      position: absolute; width: 142px; height: 68px; border-radius: 13px;
+      display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+      background: linear-gradient(160deg, var(--fv-brand-soft), rgba(255,255,255,0.03));
+      border: 1.5px solid var(--fv-brand);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .fv-flow-dst {
+      background: linear-gradient(160deg, var(--fv-accent-soft), rgba(255,255,255,0.03));
+      border-color: var(--fv-accent);
+    }
+    .fv-flow-ico { font-size: 24px; flex: none; }
+    .fv-flow-txt { min-width: 0; flex: 1; }
+    .fv-flow-lbl { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .fv-flow-sub { font-size: 11px; color: var(--fv-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .fv-flow-hub {
+      position: absolute; border-radius: 16px; padding: 14px 16px;
+      background: rgba(255, 255, 255, 0.045);
+      border: 1.5px solid var(--fv-border-strong);
+      display: flex; flex-direction: column; justify-content: center;
+      box-shadow: 0 0 36px var(--fv-brand-soft);
+    }
+    .fv-flow-hub-head {
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 14px; font-weight: 800; color: #fff; margin-bottom: 10px;
+    }
+    .fv-flow-tag {
+      padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700;
+      background: var(--fv-accent-soft); color: var(--fv-accent);
+    }
+    .fv-part-list { display: flex; flex-direction: column; gap: 9px; }
+    .fv-part-row { display: flex; align-items: center; gap: 8px; }
+    .fv-part-lbl {
+      width: 48px; font-size: 12px; font-weight: 700; font-family: var(--fv-font-mono);
+      color: var(--fv-text-muted); white-space: nowrap; overflow: hidden;
+    }
+    .fv-part-cells { display: flex; gap: 4px; flex: 1; }
+    .fv-part-cell {
+      flex: 1; height: 16px; border-radius: 3px;
+      background: rgba(255, 255, 255, 0.07); border: 1px solid rgba(255, 255, 255, 0.12);
+    }
+    .fv-part-cell.filled {
+      background: linear-gradient(135deg, var(--fv-brand), var(--fv-accent));
+      border-color: var(--fv-accent);
+      box-shadow: 0 0 8px var(--fv-brand-soft);
+    }
+    .fv-flow-hub-foot {
+      margin-top: 10px; font-size: 11px; color: var(--fv-text-muted); text-align: center;
+    }
+    .fv-flow-hub-broker {
+      align-items: center; text-align: center;
+      background: radial-gradient(circle at 50% 35%, var(--fv-brand-soft), rgba(15, 20, 32, 0.9));
+      border-color: var(--fv-brand);
+    }
+    .fv-flow-broker-ico { font-size: 44px; margin-bottom: 8px; }
+    .fv-flow-broker-title { font-size: 20px; font-weight: 800; color: #fff; }
+    .fv-flow-broker-sub { font-size: 13px; color: var(--fv-text-muted); margin-top: 6px; line-height: 1.35; }
+    .fv-flow-packets { position: absolute; inset: 0; pointer-events: none; }
+    .fv-flow-packet {
+      position: absolute; width: 14px; height: 14px; border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #ffffff, var(--fv-brand));
+      box-shadow: 0 0 16px var(--fv-brand), 0 0 6px #ffffff;
+      opacity: 0;
+    }
+    .fv-flow-packet.fv-pkt-alt {
+      background: radial-gradient(circle at 30% 30%, #ffffff, var(--fv-accent));
+      box-shadow: 0 0 16px var(--fv-accent), 0 0 6px #ffffff;
+    }
+
+    /* 2. Sequence Flow */
+    .fv-seq-stage { position: relative; padding: 6px 10px 10px; }
+    .fv-seq-actors { position: relative; height: 64px; margin-bottom: 10px; }
+    .fv-seq-actor {
+      position: absolute; top: 0; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; width: 180px;
+    }
+    .fv-seq-actor-box {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: 12px;
+      background: var(--fv-brand-soft); border: 1.5px solid var(--fv-brand);
+      font-size: 15px; font-weight: 800; color: #fff; white-space: nowrap;
+    }
+    .fv-seq-actor-sub { font-size: 11px; color: var(--fv-text-muted); margin-top: 4px; }
+    .fv-seq-body { position: relative; padding: 8px 0; }
+    .fv-seq-lifeline {
+      position: absolute; top: 0; bottom: 0; width: 2px;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.18) 0 6px, transparent 6px 12px);
+      transform: translateX(-50%);
+    }
+    .fv-seq-lanes { position: relative; display: flex; flex-direction: column; gap: 16px; z-index: 1; }
+    .fv-seq-lane { display: flex; flex-direction: column; gap: 5px; position: relative; }
+    .fv-seq-meta {
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+      font-size: 14px; font-weight: 700; color: #fff;
+    }
+    .fv-seq-tag, .fv-seq-step {
+      padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 800;
+      font-family: var(--fv-font-mono); background: var(--fv-brand-soft); color: var(--fv-brand);
+      border: 1px solid var(--fv-brand);
+    }
+    .fv-seq-col-accent .fv-seq-tag, .fv-seq-col-accent .fv-seq-step {
+      background: var(--fv-accent-soft); color: var(--fv-accent); border-color: var(--fv-accent);
+    }
+    .fv-seq-col-ok .fv-seq-tag, .fv-seq-col-ok .fv-seq-step {
+      background: rgba(74, 222, 128, 0.16); color: #4ade80; border-color: #4ade80;
+    }
+    .fv-seq-track {
+      position: relative; height: 6px; border-radius: 999px;
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .fv-seq-fill {
+      position: absolute; top: 0; bottom: 0; left: 0; width: 0%;
+      border-radius: 999px; background: linear-gradient(90deg, var(--fv-brand), var(--fv-accent));
+      box-shadow: 0 0 12px var(--fv-brand-soft);
+    }
+    .fv-seq-lane[data-seq-dir="-1"] .fv-seq-fill { left: auto; right: 0; }
+    .fv-seq-head {
+      position: absolute; top: -4px; width: 0; height: 0;
+      border-top: 7px solid transparent; border-bottom: 7px solid transparent;
+    }
+    .fv-seq-head-r { right: -2px; border-left: 10px solid var(--fv-accent); }
+    .fv-seq-head-l { left: -2px; border-right: 10px solid var(--fv-brand); }
+    .fv-seq-dot {
+      position: absolute; top: -5px; width: 16px; height: 16px; border-radius: 50%;
+      transform: translateX(-50%);
+      background: radial-gradient(circle at 30% 30%, #fff, var(--fv-accent));
+      box-shadow: 0 0 16px var(--fv-accent), 0 0 6px #fff;
+      opacity: 0;
+    }
+
+    /* 3. Hierarchy Tree */
+    .fv-tree-list { display: flex; flex-direction: column; gap: 8px; font-family: var(--fv-font-mono); }
+    .fv-tree-row {
+      display: flex; align-items: center; gap: 10px;
+      padding: 9px 14px; border-radius: 10px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      font-size: 15px; color: var(--fv-text-muted);
+    }
+    .fv-tree-branch { color: var(--fv-text-faint); font-weight: 700; }
+    .fv-tree-ico { font-size: 18px; }
+    .fv-tree-lbl { flex: 1; font-weight: 600; color: #fff; }
+    .fv-tree-badge {
+      padding: 3px 10px; border-radius: 999px; font-size: 12px; font-weight: 700;
+      background: var(--fv-brand-soft); color: var(--fv-brand); border: 1px solid var(--fv-brand);
+    }
+    .fv-tree-row.fv-tree-scan {
+      background: linear-gradient(90deg, var(--fv-brand-soft), rgba(255, 255, 255, 0.04));
+      border-color: var(--fv-brand);
+      box-shadow: 0 0 20px var(--fv-brand-soft);
+    }
+    .fv-tree-row.fv-tree-hl .fv-tree-badge {
+      background: var(--fv-accent-soft); color: var(--fv-accent); border-color: var(--fv-accent);
+    }
+
+    /* 4. Compare Matrix */
+    .fv-cmp-table { width: 100%; border-collapse: separate; border-spacing: 0; overflow: hidden; border-radius: 12px; border: 1px solid var(--fv-border); }
+    .fv-cmp-th, .fv-cmp-td { padding: 12px 16px; text-align: left; font-size: 15px; border-bottom: 1px solid rgba(255,255,255,0.06); }
+    .fv-cmp-th { background: rgba(255, 255, 255, 0.07); font-weight: 800; color: #fff; text-transform: uppercase; font-size: 13px; letter-spacing: 0.06em; }
+    .fv-cmp-td.fv-cmp-c0 { font-weight: 700; color: var(--fv-text-muted); width: 24%; }
+    .fv-cmp-td.fv-cmp-c1 { color: #93c5fd; font-weight: 600; }
+    .fv-cmp-td.fv-cmp-c2 { color: #fcd34d; font-weight: 600; }
+    .fv-cmp-tr.fv-cmp-active { background: var(--fv-brand-soft); }
   `;
 
   function init() {
@@ -1093,5 +1766,9 @@ ${tokenCss()}
     renderMetrics,
     renderCodeSnippet,
     renderDiagram,
+    renderFlowArchitecture,
+    renderSequenceFlow,
+    renderHierarchyTree,
+    renderCompareMatrix,
   };
 })();

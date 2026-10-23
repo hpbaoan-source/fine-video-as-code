@@ -149,6 +149,101 @@ export const SceneSchema = z.object({
       steps: z.array(z.string().max(120)).max(6).optional(),
     })
     .optional(),
+
+  // ─── Rich Animated Illustrations (time-driven in tickScene) ──
+  // 1. Spatial topology with continuous message packets & filling cells
+  flowArchitecture: z
+    .object({
+      title: z.string().max(80).optional(),
+      badge: z.string().max(40).optional(),
+      sources: z
+        .array(
+          z.object({
+            icon: z.string().max(30).optional(),
+            label: z.string().max(40),
+            sub: z.string().max(40).optional(),
+          })
+        )
+        .max(4)
+        .default([]),
+      center: z.object({
+        icon: z.string().max(30).optional(),
+        title: z.string().max(50),
+        sub: z.string().max(60).optional(),
+        partitions: z.array(z.string().max(24)).max(4).optional(),
+        cells: z.number().int().min(4).max(16).optional(),
+      }),
+      targets: z
+        .array(
+          z.object({
+            icon: z.string().max(30).optional(),
+            label: z.string().max(40),
+            sub: z.string().max(40).optional(),
+          })
+        )
+        .max(4)
+        .default([]),
+      caption: z.string().max(100).optional(),
+    })
+    .optional(),
+
+  // 2. Protocol handshake / message sequence diagram
+  sequenceFlow: z
+    .object({
+      title: z.string().max(80).optional(),
+      actors: z
+        .array(
+          z.object({
+            icon: z.string().max(30).optional(),
+            label: z.string().max(40),
+            sub: z.string().max(40).optional(),
+          })
+        )
+        .min(2)
+        .max(3),
+      messages: z
+        .array(
+          z.object({
+            from: z.number().int().min(0).max(2),
+            to: z.number().int().min(0).max(2),
+            label: z.string().max(60),
+            tag: z.string().max(24).optional(),
+            color: z.enum(["brand", "accent", "ok", "warn"]).optional(),
+          })
+        )
+        .min(1)
+        .max(6),
+    })
+    .optional(),
+
+  // 3. Indented tree / topic hierarchy / commit graph with live scanner
+  hierarchyTree: z
+    .object({
+      title: z.string().max(80).optional(),
+      nodes: z
+        .array(
+          z.object({
+            level: z.number().int().min(0).max(4).default(0),
+            icon: z.string().max(30).optional(),
+            label: z.string().max(60),
+            badge: z.string().max(30).optional(),
+            highlight: z.boolean().optional(),
+          })
+        )
+        .min(2)
+        .max(10),
+      footer: z.string().max(100).optional(),
+    })
+    .optional(),
+
+  // 4. Multi-column animated comparison table
+  compareMatrix: z
+    .object({
+      title: z.string().max(80).optional(),
+      headers: z.array(z.string().max(50)).min(2).max(4),
+      rows: z.array(z.array(z.string().max(80)).min(2).max(4)).min(1).max(7),
+    })
+    .optional(),
 });
 
 export const ScriptSchema = z.object({

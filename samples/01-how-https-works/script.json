@@ -17,14 +17,34 @@
       "subheading": "Biểu tượng ổ khóa màu xanh trên URL thực sự bảo vệ bạn như thế nào?",
       "voiceover": "Mỗi ngày, hàng tỷ người nhìn thấy biểu tượng ổ khóa này trên thanh địa chỉ trình duyệt. Nhưng nó thực sự đang bảo vệ bạn khỏi điều gì, và bằng cách nào?",
       "duration_ms": 12000,
-      "visual_cue": "Ổ khóa bảo mật trên URL",
+      "visual_cue": "Luồng kết nối bảo mật HTTPS trên Internet",
       "visual_cues": [
         { "type": "icon", "name": "lock", "size": 220 }
       ],
       "metrics": [
         { "value": "4.8 Tỷ", "label": "NGƯỜI DÙNG INTERNET" },
         { "value": "95%+", "label": "LƯU LƯỢNG MÃ HÓA HTTPS" }
-      ]
+      ],
+      "flowArchitecture": {
+        "title": "Đường hầm bảo mật HTTPS",
+        "badge": "ENCRYPTED TUNNEL",
+        "sources": [
+          { "icon": "💻", "label": "Trình duyệt", "sub": "Người dùng" },
+          { "icon": "📱", "label": "Mobile App", "sub": "Client" }
+        ],
+        "center": {
+          "icon": "🔒",
+          "title": "TLS 1.3 + AES-256",
+          "partitions": ["TLS", "CERT", "GCM"],
+          "cells": 10,
+          "sub": "Mã hóa toàn trình chống nghe lén"
+        },
+        "targets": [
+          { "icon": "🏦", "label": "Banking API", "sub": "Server" },
+          { "icon": "☁️", "label": "Cloud Data", "sub": "Origin" }
+        ],
+        "caption": "Mọi gói tin đi qua đường hầm TLS đều được khóa chặt"
+      }
     },
     {
       "id": "scene-2",
@@ -33,7 +53,7 @@
       "subheading": "Dữ liệu văn bản thuần không được mã hóa qua mạng công cộng",
       "voiceover": "Khi bạn dùng HTTP thuần, mọi thứ đều truyền dưới dạng văn bản mở. Bất kỳ ai trên đường truyền cũng có thể chặn và đọc mật khẩu, số thẻ tín dụng hoặc tin nhắn riêng tư của bạn.",
       "duration_ms": 14000,
-      "visual_cue": "Gói tin HTTP bị tấn công",
+      "visual_cue": "Đối chiếu rủi ro HTTP thuần và HTTPS",
       "visual_cues": [
         { "type": "icon", "name": "globe", "size": 200 }
       ],
@@ -41,7 +61,17 @@
         "Mật khẩu, cookie và token bị đọc lén trực tiếp",
         "Kẻ tấn công có thể chèn mã độc vào gói tin phản hồi",
         "Hoàn toàn không có cơ chế phát hiện giả mạo máy chủ"
-      ]
+      ],
+      "compareMatrix": {
+        "title": "So sánh HTTP Thuần vs HTTPS Bảo Mật",
+        "headers": ["Tiêu chí", "HTTP Thuần (Cổng 80)", "HTTPS (TLS 1.3 · Cổng 443)"],
+        "rows": [
+          ["Dữ liệu truyền", "Văn bản thô (Plaintext dễ đọc lén)", "Mã hóa AES-256-GCM toàn phần"],
+          ["Xác thực Server", "Không có (Dễ bị giả mạo DNS/Wi-Fi)", "Chứng chỉ số SSL/CA ký xác thực"],
+          ["Toàn vẹn gói tin", "Kẻ gian chèn mã độc dễ dàng", "Mã MAC phát hiện mọi sửa đổi"],
+          ["Độ an toàn", "Nguy hiểm cho mật khẩu & thẻ", "Chuẩn bắt buộc của Web hiện đại"]
+        ]
+      }
     },
     {
       "id": "scene-3",
@@ -50,17 +80,26 @@
       "subheading": "Thỏa thuận bảo mật tự động diễn ra trong tích tắc trước khi gửi dữ liệu",
       "voiceover": "HTTPS bổ sung lớp mã hóa TLS. Trước khi dữ liệu nào được gửi đi, trình duyệt và máy chủ thực hiện một quá trình bắt tay để thỏa thuận khóa bí mật chung.",
       "duration_ms": 14000,
-      "visual_cue": "Sơ đồ bắt tay TLS Handshake",
+      "visual_cue": "Sơ đồ bắt tay TLS Handshake theo thời gian thực",
       "visual_cues": [
         { "type": "icon", "name": "handshake", "size": 220 }
       ],
-      "diagram": {
-        "nodes": ["Trình duyệt Client", "Bắt tay TLS", "Máy chủ Server"],
-        "steps": [
-          "ClientHello: Gửi danh sách thuật toán mã hóa hỗ trợ",
-          "ServerHello: Chọn Cipher Suite và gửi Chứng chỉ số",
-          "Diffie-Hellman: Hai bên sinh khóa phiên chung an toàn",
-          "Mọi byte dữ liệu truyền sau đó đều được mã hóa tuyệt đối"
+      "bullets": [
+        "ClientHello: Gửi danh sách thuật toán mã hóa hỗ trợ",
+        "ServerHello: Chọn Cipher Suite và gửi Chứng chỉ số",
+        "Diffie-Hellman: Hai bên sinh khóa phiên chung an toàn"
+      ],
+      "sequenceFlow": {
+        "title": "Quy trình Bắt tay TLS 1.3 (1-RTT Handshake)",
+        "actors": [
+          { "icon": "💻", "label": "Client Browser", "sub": "Trình duyệt" },
+          { "icon": "🛡️", "label": "HTTPS Server", "sub": "Máy chủ đích" }
+        ],
+        "messages": [
+          { "from": 0, "to": 1, "tag": "SYN", "label": "ClientHello + Cipher Suites + Key Share", "color": "brand" },
+          { "from": 1, "to": 0, "tag": "CERT", "label": "ServerHello + Chứng chỉ SSL + Key Share", "color": "accent" },
+          { "from": 0, "to": 1, "tag": "VER", "label": "Xác minh CA & Tính khóa phiên chung", "color": "ok" },
+          { "from": 0, "to": 1, "tag": "AES", "label": "Truyền dữ liệu mã hóa AES-256-GCM", "color": "ok" }
         ]
       }
     },
@@ -71,11 +110,22 @@
       "subheading": "Trình duyệt kiểm tra chữ ký số của tổ chức thứ ba uy tín",
       "voiceover": "Server gửi chứng chỉ số do tổ chức uy tín ký xác thực. Trình duyệt tự động kiểm tra chứng chỉ còn hạn hay không, đúng tên miền hay không, và có bị thu hồi hay không.",
       "duration_ms": 14000,
-      "visual_cue": "Kiểm tra chuỗi chứng chỉ CA",
+      "visual_cue": "Chuỗi tín nhiệm chứng chỉ số Certificate Chain",
       "visual_cues": [
         { "type": "icon", "name": "certificate", "size": 220 }
       ],
-      "codeSnippet": "# Quy trình tự động kiểm tra chứng chỉ số:\n✓ Certificate Chain hợp lệ (Root CA → Intermediate → Server)\n✓ Domain trùng khớp với SAN (Subject Alternative Names)\n✓ Chưa bị thu hồi trên danh sách CRL / OCSP\n⚠ Nếu thiếu bất kỳ điều kiện nào → Trình duyệt chặn kết nối ngay"
+      "codeSnippet": "# Quy trình tự động kiểm tra chứng chỉ số:\n✓ Certificate Chain hợp lệ (Root CA → Intermediate → Server)\n✓ Domain trùng khớp với SAN (Subject Alternative Names)\n✓ Chưa bị thu hồi trên danh sách CRL / OCSP\n⚠ Nếu thiếu bất kỳ điều kiện nào → Trình duyệt chặn kết nối ngay",
+      "hierarchyTree": {
+        "title": "Chuỗi Tín nhiệm Chứng chỉ số (Chain of Trust)",
+        "nodes": [
+          { "level": 0, "icon": "🏛️", "label": "Root CA (DigiCert / Let's Encrypt)", "badge": "TRUSTED ROOT" },
+          { "level": 1, "icon": "📜", "label": "Intermediate CA Certificate", "badge": "RSA-4096" },
+          { "level": 2, "icon": "🔒", "label": "Server Certificate ( domain.vn )", "highlight": true, "badge": "VERIFIED" },
+          { "level": 3, "icon": "✅", "label": "SAN Match & OCSP Stapling", "badge": "VALID" },
+          { "level": 3, "icon": "🔑", "label": "Subject Public Key (ECDHE)", "badge": "ACTIVE" }
+        ],
+        "footer": "Chữ ký số RSA/ECDSA chống làm giả chứng chỉ 100%"
+      }
     },
     {
       "id": "scene-5",
@@ -84,7 +134,7 @@
       "subheading": "Sinh khóa chung siêu an toàn mà không cần truyền khóa qua mạng",
       "voiceover": "Hai bên áp dụng thuật toán Diffie-Hellman để cùng tạo ra một khóa bí mật chung mà không bao giờ truyền qua mạng. Kẻ nghe trộm bắt được toàn bộ gói tin cũng không thể tính ra khóa.",
       "duration_ms": 14000,
-      "visual_cue": "Trao đổi khóa Diffie-Hellman",
+      "visual_cue": "Cơ chế trao đổi khóa bất đối xứng ECDHE",
       "visual_cues": [
         { "type": "icon", "name": "key", "size": 220 }
       ],
@@ -92,7 +142,26 @@
         { "value": "X25519", "label": "ĐƯỜNG CONG ELLIPTIC" },
         { "value": "0-RTT", "label": "TỐC ĐỘ KẾT NỐI TLS 1.3" },
         { "value": "PFS", "label": "FORWARD SECRECY AN TOÀN" }
-      ]
+      ],
+      "flowArchitecture": {
+        "title": "Trao đổi khóa Elliptic Curve Diffie-Hellman",
+        "badge": "PERFECT FORWARD SECRECY",
+        "sources": [
+          { "icon": "🔑", "label": "Client Secret", "sub": "Private Key A" },
+          { "icon": "🌐", "label": "Public Params", "sub": "Curve X25519" },
+          { "icon": "🗝️", "label": "Server Secret", "sub": "Private Key B" }
+        ],
+        "center": {
+          "icon": "🧮",
+          "title": "Toán học ECDHE",
+          "sub": "Hàm một chiều: Dễ nhân điểm, bất khả thi khi đảo ngược"
+        },
+        "targets": [
+          { "icon": "🔐", "label": "Session Key", "sub": "256-bit Shared" },
+          { "icon": "🛡️", "label": "Chống nghe lén", "sub": "Hacker bất lực" }
+        ],
+        "caption": "Khóa bí mật chung được tính độc lập ở hai đầu, không bao giờ đi qua dây mạng"
+      }
     },
     {
       "id": "scene-6",
@@ -101,7 +170,7 @@
       "subheading": "Niêm phong toàn bộ dữ liệu ở tốc độ phần cứng gigabit",
       "voiceover": "Từ đây, mọi byte dữ liệu được mã hóa bằng khóa phiên chung. Thuật toán AES-256, chuẩn vàng của mật mã học hiện đại, có thể thách thức siêu máy tính trong hàng triệu năm.",
       "duration_ms": 14000,
-      "visual_cue": "Mã hóa đối xứng AES-GCM",
+      "visual_cue": "Luồng mã hóa khối dữ liệu AES-256-GCM",
       "visual_cues": [
         { "type": "icon", "name": "shield-check", "size": 220 }
       ],
@@ -109,7 +178,28 @@
         { "value": "AES-256", "label": "CHUẨN MÃ HÓA QUÂN SỰ" },
         { "value": "GCM", "label": "CHỐNG CAN THIỆP GÓI TIN" },
         { "value": "< 1 ms", "label": "ĐỘ TRỄ GIẢI MÃ PHẦN CỨNG" }
-      ]
+      ],
+      "flowArchitecture": {
+        "title": "Luồng Mã hóa Đối xứng AES-256-GCM",
+        "badge": "GIGABIT SPEED",
+        "sources": [
+          { "icon": "💳", "label": "Thẻ tín dụng", "sub": "Plaintext" },
+          { "icon": "🔑", "label": "Mật khẩu", "sub": "Plaintext" },
+          { "icon": "💬", "label": "Tin nhắn", "sub": "Plaintext" }
+        ],
+        "center": {
+          "icon": "⚡",
+          "title": "AES-256 Engine",
+          "partitions": ["BLK0", "BLK1", "AUTH"],
+          "cells": 12,
+          "sub": "Mã hóa từng khối + gắn nhãn xác thực GCM"
+        },
+        "targets": [
+          { "icon": "🔒", "label": "Ciphertext", "sub": "0x9f8a..e2c1" },
+          { "icon": "✅", "label": "MAC Verified", "sub": "Toàn vẹn 100%" }
+        ],
+        "caption": "Tăng tốc phần cứng AES-NI giúp mã hóa hàng Gigabit mỗi giây"
+      }
     },
     {
       "id": "scene-7",
@@ -118,9 +208,19 @@
       "subheading": "Mỗi cú nhấp chuột là hàng triệu phép toán bảo vệ bạn trong tích tắc",
       "voiceover": "Như vậy, HTTPS không chỉ là một chiếc ổ khóa biểu tượng. Đó là sự kết hợp hoàn hảo giữa toán học, chứng chỉ số và thuật toán mã hóa tối tân, chạy mượt mà mỗi khi bạn mở trình duyệt.",
       "duration_ms": 14000,
-      "visual_cue": "Tổng kết hệ thống bảo mật HTTPS",
+      "visual_cue": "Tổng kết 3 trụ cột bảo mật của HTTPS",
       "visual_cues": [
-        { "type": "icon", "name": "check", "size": 220 }
+        {
+          "type": "chart",
+          "unit": "%",
+          "max": 100,
+          "data": {
+            "Xác thực danh tính CA": 100,
+            "An toàn khóa ECDHE": 100,
+            "Mã hóa AES-256-GCM": 100,
+            "Hiệu năng TLS 1.3": 98
+          }
+        }
       ],
       "bullets": [
         "Chứng chỉ số: Đảm bảo bạn đang kết nối đúng máy chủ chính thống",

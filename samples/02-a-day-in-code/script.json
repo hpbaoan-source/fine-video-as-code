@@ -19,13 +19,23 @@
       "duration_ms": 12000,
       "visual_cue": "Khởi đầu ngày mới cùng cafe và IDE",
       "visual_cues": [
-        { "type": "icon", "name": "coffee", "size": 240 }
+        { "type": "icon", "name": "coffee", "size": 220 }
       ],
       "metrics": [
         { "value": "1 Tách", "label": "CÀ PHÊ NGUYÊN CHẤT" },
         { "value": "78 Task", "label": "JIRA TICKETS BACKLOG" },
         { "value": "1 Mục tiêu", "label": "KHỞI ĐẦU TẬP TRUNG" }
-      ]
+      ],
+      "hierarchyTree": {
+        "title": "Workspace Khởi động Buổi sáng (06:00 AM)",
+        "nodes": [
+          { "level": 0, "icon": "☕", "label": "Morning Routine & Deep Focus", "badge": "READY" },
+          { "level": 1, "icon": "📋", "label": "Jira Sprint #42 (78 Backlog Items)", "badge": "FILTERED" },
+          { "level": 2, "icon": "🎯", "label": "TASK-108: Tối ưu API Payment Core", "highlight": true, "badge": "IN PROGRESS" },
+          { "level": 1, "icon": "💻", "label": "VS Code + Docker Dev Container", "badge": "ONLINE" }
+        ],
+        "footer": "Chia việc lớn thành mục tiêu nhỏ để bắt đầu ngay lập tức"
+      }
     },
     {
       "id": "scene-2",
@@ -36,13 +46,34 @@
       "duration_ms": 12000,
       "visual_cue": "Trạng thái tập trung sâu Flow State",
       "visual_cues": [
-        { "type": "icon", "name": "desktop", "size": 240 }
+        { "type": "icon", "name": "desktop", "size": 220 }
       ],
       "bullets": [
         "Không gian tĩnh lặng, âm nhạc Lo-fi nhịp nhàng",
         "Viết Unit Test chặt chẽ, kiểm soát trọn vẹn logic",
         "Build xanh không cảnh báo, sẵn sàng cho bước tiếp theo"
-      ]
+      ],
+      "flowArchitecture": {
+        "title": "Luồng Năng lượng Flow State (09:00 AM)",
+        "badge": "DEEP WORK",
+        "sources": [
+          { "icon": "🎧", "label": "Lo-fi Beats", "sub": "Zero Noise" },
+          { "icon": "📐", "label": "Clean Spec", "sub": "Architecture" },
+          { "icon": "⌨️", "label": "Keystrokes", "sub": "120 WPM" }
+        ],
+        "center": {
+          "icon": "⚡",
+          "title": "Dev Engine",
+          "partitions": ["CODE", "TEST", "LINT"],
+          "cells": 10,
+          "sub": "Code · Unit Test · Compiler chạy liên hoàn"
+        },
+        "targets": [
+          { "icon": "✅", "label": "0 Errors", "sub": "Build Passed" },
+          { "icon": "💎", "label": "Clean Logic", "sub": "100% Coverage" }
+        ],
+        "caption": "Khi đạt trạng thái Flow State, năng suất tăng gấp 300%"
+      }
     },
     {
       "id": "scene-3",
@@ -51,15 +82,26 @@
       "subheading": "Bốn mươi lăm phút truy vết log hệ thống chỉ vì một dấu phẩy thất lạc",
       "voiceover": "Mười hai giờ rưỡi. Báo động bug xuất hiện trên production. Bạn bình tĩnh soi log, đặt breakpoint và truy vết. Bốn mươi lăm phút sau, hóa ra là một dấu phẩy.",
       "duration_ms": 13000,
-      "visual_cue": "Gỡ rối bug hệ thống production",
+      "visual_cue": "Hành trình truy vết và tiêu diệt bug production",
       "visual_cues": [
-        { "type": "icon", "name": "bug", "size": 240 }
+        { "type": "icon", "name": "bug", "size": 220 }
       ],
       "bullets": [
         "Soi log hệ thống: Định vị stack trace chính xác ở dòng 142",
         "Đặt breakpoint debugger: Lần theo từng bước thực thi của hàm",
         "Sửa đúng một dấu phẩy: Hệ thống production lập tức bình yên trở lại"
-      ]
+      ],
+      "hierarchyTree": {
+        "title": "Truy vết Stack Trace & Debugger (12:30 PM)",
+        "nodes": [
+          { "level": 0, "icon": "🚨", "label": "Production Alert: HTTP 500 Spike", "badge": "CRITICAL" },
+          { "level": 1, "icon": "📜", "label": "services/checkout/payload-parser.js", "badge": "TRACE" },
+          { "level": 2, "icon": "🔴", "label": "Breakpoint @ Line 142: Missing ',' token", "highlight": true, "badge": "ROOT CAUSE" },
+          { "level": 3, "icon": "🛠️", "label": "Patch + Regression Test Added", "badge": "FIXED" },
+          { "level": 1, "icon": "🟢", "label": "System Latency & Error Rate: 0.00%", "badge": "STABLE" }
+        ],
+        "footer": "Bình tĩnh phân tích log luôn nhanh hơn đoán mò"
+      }
     },
     {
       "id": "scene-4",
@@ -68,15 +110,28 @@
       "subheading": "Đọc code đồng đội để học hỏi tư duy, phản biện văn minh và cùng nhau tiến bộ",
       "voiceover": "Ba giờ chiều. Bạn review code đồng đội không phải để săm soi, mà để học hỏi góc nhìn mới. Vài góp ý xây dựng, giải pháp tối ưu và một lời khen chân thành.",
       "duration_ms": 13000,
-      "visual_cue": "Review Pull Request cùng đồng nghiệp",
+      "visual_cue": "Tương tác Code Review văn minh cùng đồng đội",
       "visual_cues": [
-        { "type": "icon", "name": "eye", "size": 240 }
+        { "type": "icon", "name": "eye", "size": 220 }
       ],
       "metrics": [
         { "value": "3", "label": "GÓP Ý XÂY DỰNG" },
         { "value": "2", "label": "GIẢI PHÁP TỐI ƯU" },
         { "value": "1", "label": "LỜI KHEN CHÂN THÀNH" }
-      ]
+      ],
+      "sequenceFlow": {
+        "title": "Vòng đời Pull Request & Code Review (15:00 PM)",
+        "actors": [
+          { "icon": "👩‍💻", "label": "Author Dev", "sub": "Người tạo PR" },
+          { "icon": "🧑‍💻", "label": "Team Reviewer", "sub": "Đồng đội" }
+        ],
+        "messages": [
+          { "from": 0, "to": 1, "tag": "PR", "label": "Mở PR #208 kèm mô tả & Unit Tests", "color": "brand" },
+          { "from": 1, "to": 0, "tag": "IDEA", "label": "Góp ý tối ưu độ phức tạp O(n²) → O(n)", "color": "accent" },
+          { "from": 0, "to": 1, "tag": "FIX", "label": "Cập nhật thuật toán mới siêu mượt", "color": "brand" },
+          { "from": 1, "to": 0, "tag": "LGTM", "label": "Approve + Khen ngợi giải pháp tinh tế!", "color": "ok" }
+        ]
+      }
     },
     {
       "id": "scene-5",
@@ -85,11 +140,31 @@
       "subheading": "CI/CD tự động chạy xanh, hàng ngàn người dùng trải nghiệm tính năng mới",
       "voiceover": "Sáu giờ chiều. Nhấn nút merge. Đường ống CI/CD chạy xanh toàn bộ. Bạn thở phào nhẹ nhõm khi tính năng mới chính thức đến tay hàng nghìn người dùng.",
       "duration_ms": 13000,
-      "visual_cue": "Đẩy tính năng lên môi trường production",
+      "visual_cue": "Đường ống tự động hóa CI/CD lên Production",
       "visual_cues": [
-        { "type": "icon", "name": "rocket", "size": 240 }
+        { "type": "icon", "name": "rocket", "size": 220 }
       ],
-      "codeSnippet": "$ git push origin feat/core-features\n✓ CI Pipeline: 18/18 jobs passed\n✓ Staging Health Check: 100% OK\n🚀 Production Deployed Successfully at 18:05"
+      "codeSnippet": "$ git push origin feat/core-features\n✓ CI Pipeline: 18/18 jobs passed\n✓ Staging Health Check: 100% OK\n🚀 Production Deployed Successfully at 18:05",
+      "flowArchitecture": {
+        "title": "Đường ống Tự động hóa CI/CD (18:00 PM)",
+        "badge": "ZERO DOWNTIME",
+        "sources": [
+          { "icon": "🔀", "label": "Git Merge", "sub": "main branch" },
+          { "icon": "🐳", "label": "Docker Image", "sub": "v2.4.0" }
+        ],
+        "center": {
+          "icon": "🚀",
+          "title": "CI/CD Pipeline",
+          "partitions": ["BUILD", "TEST", "CANARY"],
+          "cells": 10,
+          "sub": "18/18 Automated Checks Passed"
+        },
+        "targets": [
+          { "icon": "🌐", "label": "Production", "sub": "Cluster Live" },
+          { "icon": "😊", "label": "Users", "sub": "Trải nghiệm mới" }
+        ],
+        "caption": "Tự động hóa triển khai giúp mỗi lần phát hành đều nhẹ nhàng"
+      }
     },
     {
       "id": "scene-6",
@@ -98,16 +173,25 @@
       "subheading": "Mỗi dòng code bạn viết hôm nay là viên gạch xây dựng thế giới tương lai",
       "voiceover": "Ngày mai bạn sẽ tiếp tục hành trình này. Mỗi dòng code là một viên gạch nhỏ kiến tạo nên những giải pháp lớn lao. Hãy tự hào về hành trình kỹ sư của chính bạn.",
       "duration_ms": 13000,
-      "visual_cue": "Tự hào nhìn lại chặng đường nghề lập trình",
+      "visual_cue": "Tổng kết hành trình 24 giờ của kỹ sư phần mềm",
       "visual_cues": [
-        { "type": "icon", "name": "lightbulb", "size": 240 }
+        { "type": "icon", "name": "lightbulb", "size": 220 }
       ],
       "bullets": [
         "Sáng: Khởi đầu ngày mới với mục tiêu rõ ràng, không ôm đồm",
         "Trưa: Bình tĩnh giải quyết thử thách như một thám tử công nghệ",
-        "Chiều: Đồng hành, lắng nghe và gắn kết vững chắc cùng đồng đội",
-        "Tối: Tự hào nhìn sản phẩm hoạt động và chuẩn bị cho ngày mai"
-      ]
+        "Chiều & Tối: Gắn kết đồng đội và tự hào nhìn sản phẩm vươn xa"
+      ],
+      "compareMatrix": {
+        "title": "Nhịp điệu 1 ngày của Kỹ sư Phần mềm",
+        "headers": ["Khung giờ", "Trọng tâm công việc", "Giá trị tạo ra"],
+        "rows": [
+          ["06:00 - 09:00", "Lập kế hoạch & Deep Flow State", "Kiến trúc sạch, logic chuẩn xác"],
+          ["12:30 - 14:00", "Truy vết Log & Debug Production", "Hệ thống vận hành ổn định 99.99%"],
+          ["15:00 - 17:00", "Code Review & Chia sẻ tri thức", "Nâng cao chất lượng cả đội ngũ"],
+          ["18:00+", "CI/CD Deploy & Tổng kết ngày", "Tính năng mới phục vụ hàng ngàn người"]
+        ]
+      }
     }
   ]
 }

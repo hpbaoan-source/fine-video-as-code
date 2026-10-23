@@ -162,6 +162,10 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
       metrics: s.metrics || [],
       codeSnippet: s.codeSnippet,
       diagram: s.diagram,
+      flowArchitecture: s.flowArchitecture,
+      sequenceFlow: s.sequenceFlow,
+      hierarchyTree: s.hierarchyTree,
+      compareMatrix: s.compareMatrix,
     })),
     brand: {
       brandColor: input.brandColor || "#3B82F6",
@@ -425,7 +429,7 @@ async function renderDeterministic(
 ) {
   let browser = null;
   let context = null;
-  let page = null;
+  const pages = [];
   try {
     browser = await chromium.launch({ headless: true, args: PLAYWRIGHT_ARGS });
     activeBrowsers.add(browser);
@@ -433,32 +437,48 @@ async function renderDeterministic(
       viewport: { width: viewport.width, height: viewport.height },
       // No recordVideo — we screenshot per frame.
     });
-    page = await context.newPage();
-    page.on("pageerror", (err) => onLog?.(`[page error] ${err.message}`));
-    page.on("console", (msg) => {
-      if (msg.type() === "error") onLog?.(`[console] ${msg.text()}`);
-    });
-
     const url = `http://127.0.0.1:${port}/${templateFile}?render=1&deterministic=1&data=_data/data.json`;
+
+    const initPage = async () => {
+      const p = await context.newPage();
+      p.on("pageerror", (err) => onLog?.(`[page error] ${err.message}`));
+      p.on("console", (msg) => {
+        if (msg.type() === "error") onLog?.(`[console] ${msg.text()}`);
+      });
+      await p.goto(url, { waitUntil: "domcontentloaded" });
+      await p.waitForFunction(() => typeof window.__seek === "function", null, { timeout: 10000 });
+      pages.push(p);
+      return p;
+    };
+
     onLog?.(`Loading ${templateFile}...`);
-    await page.goto(url, { waitUntil: "domcontentloaded" });
-    // Wait for the engine to be ready and DOM to be built.
-    await page.waitForFunction(() => typeof window.__seek === "function", null, { timeout: 10000 });
-    const totalMs = await page.evaluate(() => window.__duration());
-    onLog?.(`Engine ready, totalMs=${totalMs}, ${frameCount} frames`);
+    const firstPage = await initPage();
+    const totalMs = await firstPage.evaluate(() => window.__duration());
+    const workerCount = frameCount >= 120 ? 4 : 1;
+    onLog?.(`Engine ready, totalMs=${totalMs}, ${frameCount} frames (${workerCount} parallel worker(s))`);
+
+    for (let w = 1; w < workerCount; w++) {
+      await initPage();
+    }
 
     const msPerFrame = totalMs / frameCount;
-    for (let i = 0; i < frameCount; i++) {
-      const tMs = Math.round(i * msPerFrame);
-      await page.evaluate((t) => window.__seek(t), tMs);
-      // No animation waits needed: __seek sets state directly.
-      const framePath = path.join(framesDir, `frame-${String(i).padStart(5, "0")}.png`);
-      await page.screenshot({ path: framePath, type: "png" });
-    }
+    const chunkSize = Math.ceil(frameCount / workerCount);
+    await Promise.all(
+      pages.map(async (p, idx) => {
+        const start = idx * chunkSize;
+        const end = Math.min(frameCount, start + chunkSize);
+        for (let i = start; i < end; i++) {
+          const tMs = Math.round(i * msPerFrame);
+          await p.evaluate((t) => window.__seek(t), tMs);
+          const framePath = path.join(framesDir, `frame-${String(i).padStart(5, "0")}.png`);
+          await p.screenshot({ path: framePath, type: "png" });
+        }
+      })
+    );
     return { totalMs, frameCount };
   } finally {
-    if (page) {
-      try { await page.close(); } catch {}
+    for (const p of pages) {
+      try { await p.close(); } catch {}
     }
     if (context) {
       try { await context.close(); } catch {}
