@@ -241,6 +241,23 @@ See [`samples/README.md`](samples/README.md) for the full list and how to write 
 
 ---
 
+## 🤖 Agent-Driven Workflow (Zero-UI Video Generation)
+
+Instead of opening the Web UI or manually configuring `.env` LLM keys, you can hand this repository directly to any **AI Coding Agent** (Antigravity, Claude Code, Cursor, Windsurf, Copilot, etc.) along with your raw text/document.
+
+The root [`AGENT.md`](AGENT.md) file acts as a **Zero-Shot Playbook** that teaches the Agent the exact `script.json` schema, character limits, Vietnamese TTS acronym rules, Odometer counter formatting, and all 4 time-driven animated illustration types (`flowArchitecture`, `sequenceFlow`, `hierarchyTree`, `compareMatrix`).
+
+**How to use with an AI Agent:**
+
+1. Point your Agent to this repo and say:
+   > _"Read `AGENT.md` in `fine-video-as-code` and create a 16:9 (or 9:16 vertical) video from the following content: [paste announcement, technical doc, or outline]"_
+2. The Agent will automatically:
+   - Author a rich `samples/<slug>/script.json` with synchronized voiceover, Odometer metrics, and animated diagrams.
+   - Run `node scripts/render-sample.js <slug>` via CLI.
+   - Deliver the finished `samples/<slug>/video.mp4` directly to you.
+
+---
+
 ## Repo structure
 
 ```
