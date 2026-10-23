@@ -25,7 +25,7 @@ export const ResolutionEnum = z.enum(["480p", "720p", "1080p", "1440p", "2160p"]
 // forcing the caller to invent a topic was pure friction.
 export const GenerateInputSchema = z
   .object({
-    topic: z.string().max(500).default(""),
+    topic: z.string().max(15000).default(""),
     template: TemplateEnum,
     language: LanguageEnum.default("vi"),
     voice: z.string().min(1).max(80), // validated against per-language whitelist in step2-tts.js

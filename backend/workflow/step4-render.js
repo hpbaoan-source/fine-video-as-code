@@ -142,7 +142,7 @@ export async function step4Render({ script, input, workDir, onLog, onProgress })
     );
   }
   const sceneData = {
-    topic: input.topic || script.scenes?.[0]?.heading || "Video",
+    topic: script.meta?.topic || input.topic?.split(/\r?\n/)[0]?.slice(0, 60) || script.scenes?.[0]?.heading || "Video",
     scenes: normalized.script.scenes.map((s) => ({
       id: s.id,
       heading: s.heading || deriveHeading(s.voiceover, input.language),

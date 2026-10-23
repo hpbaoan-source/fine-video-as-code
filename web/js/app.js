@@ -71,10 +71,17 @@ $("#language").addEventListener("change", updateVoices);
 updateVoices();
 loadVoices();
 
-// ─── Duration label ─────────────────────────────────────
+// ─── Duration & Topic char counter ──────────────────────
 $("#duration").addEventListener("input", (e) => {
   $("#duration-val").textContent = e.target.value;
 });
+const topicEl = $("#topic");
+const topicCountEl = $("#topic-count");
+if (topicEl && topicCountEl) {
+  topicEl.addEventListener("input", () => {
+    topicCountEl.textContent = `${topicEl.value.length} / 15000`;
+  });
+}
 
 // ─── Preset scripts ─────────────────────────────────────
 //

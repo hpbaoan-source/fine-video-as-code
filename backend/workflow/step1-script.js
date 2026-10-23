@@ -100,21 +100,53 @@ export function capPattern(pattern, max) {
   return [...pattern.slice(0, max - 1), pattern[n - 1]];
 }
 
+// Extract a clean, short title (<= 60 chars) from a potentially multi-paragraph raw content input.
+export function summarizeTopicTitle(rawTopic) {
+  const firstLine = String(rawTopic || "")
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .find(Boolean) || "Video";
+  return firstLine.length > 60 ? `${firstLine.slice(0, 57).trim()}...` : firstLine;
+}
+
+// Split raw multi-line / multi-paragraph input into logical chunks so template-only mode
+// also distributes long pasted documents across scenes.
+function splitRawContentIntoChunks(rawTopic, count) {
+  const text = String(rawTopic || "").trim();
+  const paragraphs = text
+    .split(/\r?\n\s*\r?\n|\r?\n/)
+    .map((p) => p.replace(/^[•\-*🔥🎁📩📧📌📄✨💙]+\s*/u, "").trim())
+    .filter((p) => p.length > 8);
+  if (paragraphs.length <= 1) return null;
+  const chunks = [];
+  const perScene = Math.max(1, Math.ceil(paragraphs.length / count));
+  for (let i = 0; i < count; i++) {
+    const slice = paragraphs.slice(i * perScene, (i + 1) * perScene);
+    if (slice.length > 0) chunks.push(slice.join(". "));
+  }
+  return chunks.length > 1 ? chunks : null;
+}
+
 function buildTemplateScript(input) {
   const tmpl = TEMPLATES[input.template];
   const pattern = capPattern(tmpl.pattern, input.maxScenes);
+  const shortTitle = summarizeTopicTitle(input.topic);
+  const rawChunks = input.topic.length > 140 ? splitRawContentIntoChunks(input.topic, pattern.length) : null;
 
   // Per-scene text length, then estimated duration. Don't divide
   // the target total evenly — short hook lines and longer deep-dives
   // have very different TTS runtimes.
   const scenes = pattern.map((p, i) => {
-    const voiceover = generateVoiceoverForRole(input, p);
-    const illustration = generateIllustrationForRole(input, p);
+    const chunkText = rawChunks ? rawChunks[Math.min(i, rawChunks.length - 1)] : null;
+    const voiceover = chunkText
+      ? chunkText.slice(0, 260)
+      : generateVoiceoverForRole({ ...input, topic: shortTitle }, p);
+    const illustration = generateIllustrationForRole({ ...input, topic: shortTitle }, p);
     return {
       id: `scene-${i + 1}`,
       voiceover,
       duration_ms: estimateDurationMs(voiceover, input.language),
-      visual_cues: generateVisualCuesForRole(input, p, i, pattern.length, tmpl.visualMix),
+      visual_cues: generateVisualCuesForRole({ ...input, topic: shortTitle }, p, i, pattern.length, tmpl.visualMix),
       on_screen_text: deriveOnScreenText(voiceover, input.language),
       ...illustration,
       // The scene's structural role ("hook", "deep-dive", …).
@@ -131,7 +163,7 @@ function buildTemplateScript(input) {
     meta: {
       generated_by: "template",
       generated_at: new Date().toISOString(),
-      topic: input.topic,
+      topic: shortTitle,
     },
   };
 }
@@ -280,8 +312,9 @@ async function maybeRewriteWithLLM(script, input) {
 
   const langLabel = input.language === "vi" ? "Vietnamese" : "English";
   const systemPrompt = `You are an expert technical director and motion-graphics scriptwriter for short explainer & promo videos.
-Given a topic and scene structure, rewrite and enrich every scene in ${langLabel} so the video looks like a high-end animated technical infographic.
-Keep the exact same scene "id"s and scene count. Return valid JSON only.
+The user may provide either a short topic OR a long raw document/announcement/process specification.
+Carefully read, filter, and segment the user's raw content across the given scenes in ${langLabel} so the video looks like a high-end animated technical infographic.
+Keep the exact same scene "id"s and scene count. Return valid JSON only: { "topic_title": "Short 3-6 word title for HUD", "scenes": [...] }.
 
 For EACH scene in "scenes", return:
 - "id": exact scene id ("scene-1", etc.)
@@ -326,6 +359,9 @@ Return JSON: { "scenes": [ { "id": "scene-1", "heading": "...", "badge": "...", 
       maxTokens: 3500,
     });
     const parsed = result.parsed;
+    if (typeof parsed?.topic_title === "string" && parsed.topic_title.trim()) {
+      script.meta.topic = parsed.topic_title.trim().slice(0, 60);
+    }
     if (parsed?.scenes && Array.isArray(parsed.scenes)) {
       for (const rewritten of parsed.scenes) {
         const target = script.scenes.find((s) => s.id === rewritten.id);

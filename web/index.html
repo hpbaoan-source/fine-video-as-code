@@ -38,13 +38,16 @@
 
       <form id="gen-form" class="space-y-8">
 
-        <!-- Topic (required) -->
+        <!-- Topic / Raw Content (required) -->
         <div>
-          <label class="block text-sm font-semibold text-gray-300 mb-2">Topic <span class="text-red-400">*</span></label>
-          <input type="text" name="topic" id="topic" required minlength="3" maxlength="500"
-            placeholder="e.g. Cloud Computing, How Tempo works, FlowDesk promo"
-            class="w-full px-4 py-3 bg-[#1a1d23] border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-base" />
-          <p class="text-xs text-gray-500 mt-1">What the video is about. Drives the script and visuals.</p>
+          <label class="block text-sm font-semibold text-gray-300 mb-2">Topic / Nội dung chi tiết <span class="text-red-400">*</span></label>
+          <textarea name="topic" id="topic" required minlength="3" maxlength="15000" rows="5"
+            placeholder="Nhập chủ đề ngắn (VD: Cách HTTPS hoạt động) HOẶC dán toàn bộ nội dung văn bản, thông báo, quy trình... AI sẽ tự động chắt lọc và phân tách thành các phân cảnh (scenes) kèm sơ đồ minh họa động."
+            class="w-full px-4 py-3 bg-[#1a1d23] border border-gray-700 rounded-lg focus:border-blue-500 focus:outline-none text-base leading-relaxed resize-y"></textarea>
+          <div class="flex justify-between text-xs text-gray-500 mt-1">
+            <span>Hỗ trợ dán văn bản dài (tới 15.000 ký tự). AI sẽ tự tóm tắt, chia scene và chọn sơ đồ minh họa.</span>
+            <span id="topic-count">0 / 15000</span>
+          </div>
         </div>
 
         <!-- Template -->
