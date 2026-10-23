@@ -19,7 +19,12 @@ import { jobQueue } from "./lib/job-queue.js";
 import { cleanupAllExpiredJobs } from "./lib/cleanup.js";
 import { closeAllActiveBrowsers } from "./workflow/step4-render.js";
 import { RateLimiter } from "./lib/rate-limit.js";
-import { getLlmStatusSummary, probeLlmStatus } from "./lib/llm-client.js";
+import {
+  getLlmStatusSummary,
+  probeLlmStatus,
+  setRuntimeLlmConfig,
+  clearRuntimeLlmConfig,
+} from "./lib/llm-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -116,6 +121,22 @@ fastify.get("/health", async () => ({
 fastify.get("/api/llm-status", async (req) => {
   const force = req.query?.force === "1" || req.query?.force === "true";
   return probeLlmStatus({ force });
+});
+
+// Set ephemeral in-memory LLM configuration (RAM only, never saved to .env or disk)
+fastify.post("/api/llm-config", async (req, reply) => {
+  const { baseUrl, apiKey, model } = req.body || {};
+  if (!apiKey || typeof apiKey !== "string" || !apiKey.trim()) {
+    return reply.code(400).send({ error: "Vui lòng nhập API Key / Token hợp lệ" });
+  }
+  setRuntimeLlmConfig({ baseUrl, apiKey, model });
+  return probeLlmStatus({ force: true });
+});
+
+// Clear ephemeral in-memory LLM configuration (fall back to .env or template mode)
+fastify.delete("/api/llm-config", async () => {
+  clearRuntimeLlmConfig();
+  return probeLlmStatus({ force: true });
 });
 
 // Root: serve index.html (already handled by fastifyStatic)

@@ -19,7 +19,7 @@ import { dirname } from "node:path";
 import { ScriptSchema, SceneSchema } from "../lib/schema.js";
 import { normalizeTemplate } from "../lib/design-system.js";
 import { resolveInside } from "../lib/path-guard.js";
-import { complete } from "../lib/llm-client.js";
+import { complete, getLlmStatusSummary } from "../lib/llm-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -303,9 +303,9 @@ function deriveOnScreenText(voiceover, language) {
 
 // ─── Optional LLM rewrite (Step 1 enhancement) ────────────
 async function maybeRewriteWithLLM(script, input) {
-  // If no LLM is configured (LLM_API_KEY missing), skip silently.
-  // Otherwise we use the configured OpenAI-compatible provider.
-  if (!process.env.LLM_API_KEY) {
+  // If no LLM is configured (neither in-memory popup, process.env, nor .env file), skip silently.
+  const llmSummary = getLlmStatusSummary();
+  if (!llmSummary.configured) {
     script.meta.llm_skipped = "LLM_API_KEY not set";
     return script;
   }

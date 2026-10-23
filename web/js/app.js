@@ -24,7 +24,10 @@ async function checkHealth() {
   }
 }
 
-async function checkLlmStatus(force = false) {
+let lastLlmStatus = null;
+
+function renderLlmStatusUI(data) {
+  lastLlmStatus = data;
   const badge = $("#llm-badge");
   const dot = $("#llm-dot");
   const text = $("#llm-text");
@@ -33,54 +36,158 @@ async function checkLlmStatus(force = false) {
   const banner = $("#llm-banner");
   if (!badge || !dot || !text) return;
 
-  text.textContent = "Checking LLM…";
+  const srcBadge = data.source === "memory" ? "RAM" : ".env";
+  if (data.valid && data.status === "ready") {
+    badge.className =
+      "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-300 cursor-pointer hover:border-emerald-400 transition";
+    dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]";
+    text.textContent = `AI LLM Active (${data.model} · ${srcBadge})`;
+    if (banner && bTitle && bDesc) {
+      banner.className =
+        "px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 hover:border-emerald-400/60 cursor-pointer transition text-xs max-w-sm";
+      bTitle.className = "font-semibold text-emerald-300";
+      bTitle.textContent = `🟢 Key/Token LLM hợp lệ (${data.model} · ${srcBadge})`;
+      bDesc.textContent = `AI tự động lọc nội dung & chia scene (${data.provider}). Nhấn vào đây để đổi Key tạm thời.`;
+    }
+  } else if (data.configured && data.status === "invalid") {
+    badge.className =
+      "flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/40 text-red-300 cursor-pointer hover:border-red-400 transition";
+    dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-400";
+    text.textContent = `LLM Key Error (${srcBadge}) · Nhấn để sửa`;
+    if (banner && bTitle && bDesc) {
+      banner.className =
+        "px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5 hover:border-red-400/60 cursor-pointer transition text-xs max-w-sm";
+      bTitle.className = "font-semibold text-red-300";
+      bTitle.textContent = `🔴 Key/Token LLM lỗi hoặc mất kết nối (${srcBadge})`;
+      bDesc.textContent = `${data.message || "Lỗi kết nối"}. Nhấn vào đây để nhập lại Key/URL tạm thời.`;
+    }
+  } else {
+    badge.className =
+      "flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-300 cursor-pointer hover:border-amber-400 transition";
+    dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-400";
+    text.textContent = "Template Mode · Nhấn để thêm Key LLM";
+    if (banner && bTitle && bDesc) {
+      banner.className =
+        "px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 hover:border-amber-400/60 cursor-pointer transition text-xs max-w-sm";
+      bTitle.className = "font-semibold text-amber-300";
+      bTitle.textContent = "🟡 Chế độ Template (Chưa có Key LLM)";
+      bDesc.textContent = "Nhấn vào đây để nhập Key & URL LLM dùng tạm thời (chỉ lưu RAM, không lưu .env).";
+    }
+  }
+}
+
+async function checkLlmStatus(force = false) {
+  const text = $("#llm-text");
+  if (text) text.textContent = "Checking LLM…";
   try {
     const r = await fetch(force ? "/api/llm-status?force=1" : "/api/llm-status");
     const data = await r.json();
-    if (data.valid && data.status === "ready") {
-      // Green signal: valid LLM key & endpoint verified
-      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-300";
-      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]";
-      text.textContent = `AI LLM Active (${data.model})`;
-      if (banner && bTitle && bDesc) {
-        banner.className = "px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs max-w-sm";
-        bTitle.className = "font-semibold text-emerald-300";
-        bTitle.textContent = `🟢 Key/Token LLM hợp lệ (${data.model})`;
-        bDesc.textContent = `AI sẽ tự động phân tích nội dung, chia scene & sinh sơ đồ động (${data.provider}).`;
-      }
-    } else if (data.configured && data.status === "invalid") {
-      // Red/Amber warning: key configured in .env but rejected or unreachable
-      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/40 text-red-300";
-      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-400";
-      text.textContent = `LLM Key Error · Fallback Template`;
-      if (banner && bTitle && bDesc) {
-        banner.className = "px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5 text-xs max-w-sm";
-        bTitle.className = "font-semibold text-red-300";
-        bTitle.textContent = `🔴 Key/Token LLM không hợp lệ hoặc mất kết nối`;
-        bDesc.textContent = data.message || "Hệ thống sẽ tạm thời dùng chế độ Template mặc định.";
-      }
-    } else {
-      // Amber signal: no LLM_API_KEY configured -> Template-only mode
-      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-300";
-      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-400";
-      text.textContent = "Template Mode (No LLM Key)";
-      if (banner && bTitle && bDesc) {
-        banner.className = "px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs max-w-sm";
-        bTitle.className = "font-semibold text-amber-300";
-        bTitle.textContent = "🟡 Chế độ Template mặc định (Chưa có Key LLM)";
-        bDesc.textContent = "Thêm LLM_API_KEY vào file .env để bật AI tự động viết kịch bản & chia scene.";
-      }
-    }
+    renderLlmStatusUI(data);
   } catch (e) {
-    dot.className = "inline-block w-2 h-2 rounded-full bg-gray-500";
-    text.textContent = "LLM status unknown";
+    const dot = $("#llm-dot");
+    if (dot) dot.className = "inline-block w-2 h-2 rounded-full bg-gray-500";
+    if (text) text.textContent = "LLM status unknown";
   }
+}
+
+// ─── LLM Config Popup Modal (RAM-only) ──────────────────
+function openLlmModal() {
+  const modal = $("#llm-modal");
+  if (!modal) return;
+  $("#llm-input-url").value = lastLlmStatus?.baseUrl || "https://api.minimax.io/v1";
+  $("#llm-input-model").value = lastLlmStatus?.model || "MiniMax-M3";
+  $("#llm-input-key").value = "";
+  const fb = $("#llm-modal-feedback");
+  if (fb) fb.className = "hidden";
+  modal.classList.remove("hidden");
+  $("#llm-input-key").focus();
+}
+
+function closeLlmModal() {
+  const modal = $("#llm-modal");
+  if (modal) modal.classList.add("hidden");
+}
+
+function showModalFeedback(msg, type = "info") {
+  const fb = $("#llm-modal-feedback");
+  if (!fb) return;
+  if (type === "ok") {
+    fb.className = "px-3 py-2 rounded-lg text-xs bg-emerald-500/15 border border-emerald-500/40 text-emerald-300";
+  } else if (type === "err") {
+    fb.className = "px-3 py-2 rounded-lg text-xs bg-red-500/15 border border-red-500/40 text-red-300";
+  } else {
+    fb.className = "px-3 py-2 rounded-lg text-xs bg-blue-500/15 border border-blue-500/40 text-blue-300";
+  }
+  fb.textContent = msg;
 }
 
 const recheckBtn = $("#llm-recheck-btn");
 if (recheckBtn) {
-  recheckBtn.addEventListener("click", () => checkLlmStatus(true));
+  recheckBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    checkLlmStatus(true);
+  });
 }
+$("#llm-badge")?.addEventListener("click", openLlmModal);
+$("#llm-banner")?.addEventListener("click", openLlmModal);
+$("#llm-modal-close")?.addEventListener("click", closeLlmModal);
+$("#llm-cancel-btn")?.addEventListener("click", closeLlmModal);
+$("#llm-modal")?.addEventListener("click", (e) => {
+  if (e.target.id === "llm-modal") closeLlmModal();
+});
+$("#llm-preset-provider")?.addEventListener("change", (e) => {
+  if (!e.target.value) return;
+  const [url, model] = e.target.value.split("|");
+  if (url) $("#llm-input-url").value = url;
+  if (model) $("#llm-input-model").value = model;
+});
+
+$("#llm-save-btn")?.addEventListener("click", async () => {
+  const baseUrl = $("#llm-input-url").value.trim();
+  const model = $("#llm-input-model").value.trim();
+  const apiKey = $("#llm-input-key").value.trim();
+  if (!apiKey) {
+    showModalFeedback("⚠️ Vui lòng nhập API Key / Token.", "err");
+    return;
+  }
+  const btn = $("#llm-save-btn");
+  btn.disabled = true;
+  btn.textContent = "Đang kiểm tra…";
+  showModalFeedback("⏳ Đang kiểm tra kết nối tới LLM endpoint…", "info");
+  try {
+    const r = await fetch("/api/llm-config", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ baseUrl, model, apiKey }),
+    });
+    const data = await r.json();
+    renderLlmStatusUI(data);
+    if (data.valid) {
+      showModalFeedback(`✅ Kết nối thành công (${data.model} · chỉ lưu trên RAM)!`, "ok");
+      setTimeout(closeLlmModal, 900);
+    } else {
+      showModalFeedback(`❌ ${data.message || "Key hoặc URL không hợp lệ"}`, "err");
+    }
+  } catch (err) {
+    showModalFeedback(`❌ Lỗi kết nối: ${err.message}`, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Lưu tạm & Kiểm tra";
+  }
+});
+
+$("#llm-clear-btn")?.addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/llm-config", { method: "DELETE" });
+    const data = await r.json();
+    renderLlmStatusUI(data);
+    showModalFeedback("Đã xóa Key tạm trên RAM (chuyển về cấu hình .env hoặc Template).", "info");
+    setTimeout(closeLlmModal, 800);
+  } catch (err) {
+    showModalFeedback(`Lỗi: ${err.message}`, "err");
+  }
+});
+
 checkHealth();
 checkLlmStatus();
 

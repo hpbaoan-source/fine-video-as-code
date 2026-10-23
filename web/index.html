@@ -21,10 +21,12 @@
         </div>
       </div>
       <div class="flex items-center gap-4 text-xs">
-        <div id="llm-badge" class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800/80 border border-gray-700 text-gray-400">
+        <div id="llm-badge" role="button" tabindex="0" title="Nhấn để cấu hình tạm thời Key/Token LLM (RAM)"
+          class="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-800/80 border border-gray-700 text-gray-400 cursor-pointer hover:border-blue-500/60 transition">
           <span id="llm-dot" class="inline-block w-2 h-2 rounded-full bg-gray-500"></span>
           <span id="llm-text">Checking AI mode…</span>
-          <button type="button" id="llm-recheck-btn" title="Kiểm tra lại kết nối LLM" class="ml-1 text-gray-500 hover:text-gray-200 transition">↻</button>
+          <span class="text-[11px] opacity-75">⚙️</span>
+          <button type="button" id="llm-recheck-btn" title="Kiểm tra lại kết nối LLM" class="ml-0.5 text-gray-400 hover:text-white transition">↻</button>
         </div>
         <div class="flex items-center gap-2">
           <span id="health-dot" class="inline-block w-2 h-2 rounded-full bg-gray-600"></span>
@@ -43,9 +45,10 @@
           <h2 class="text-3xl font-bold tracking-tight">Generate a video</h2>
           <p class="text-gray-400 mt-2">Fill in a topic or paste full content, pick a template, get an explainer video in ~1-3 minutes.</p>
         </div>
-        <div id="llm-banner" class="px-4 py-3 rounded-xl border border-gray-800 bg-[#14171d] text-xs max-w-sm">
+        <div id="llm-banner" role="button" tabindex="0" title="Nhấn để mở cửa sổ nhập Key/Token LLM tạm thời"
+          class="px-4 py-3 rounded-xl border border-gray-800 bg-[#14171d] hover:border-blue-500/50 cursor-pointer transition text-xs max-w-sm">
           <div class="font-semibold text-gray-300" id="llm-banner-title">⏳ Đang kiểm tra cấu hình AI LLM…</div>
-          <div class="text-gray-500 mt-0.5" id="llm-banner-desc">Kiểm tra biến môi trường <code>.env</code></div>
+          <div class="text-gray-500 mt-0.5" id="llm-banner-desc">Nhấn vào đây để nhập nhanh Key/URL LLM tạm thời</div>
         </div>
       </div>
 
@@ -281,6 +284,72 @@
   <footer class="max-w-5xl mx-auto px-6 py-8 text-center text-xs text-gray-600">
     MIT licensed · <a href="https://github.com/hpbaoan-source/fine-video-as-code" class="hover:text-gray-400">GitHub</a>
   </footer>
+
+  <!-- ──────── LLM CONFIG POPUP MODAL (in-memory RAM only) ──────── -->
+  <div id="llm-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="w-full max-w-md bg-[#14171f] border border-gray-700 rounded-2xl shadow-2xl p-6 space-y-5">
+      <div class="flex items-start justify-between">
+        <div>
+          <h3 class="text-lg font-bold text-white">🔑 Cấu hình AI LLM (Tạm thời)</h3>
+          <p class="text-xs text-gray-400 mt-1">
+            Chỉ lưu trong biến bộ nhớ (RAM) của phiên chạy hiện tại. <strong>Tuyệt đối không ghi ra file <code>.env</code> hay ổ cứng.</strong>
+          </p>
+        </div>
+        <button type="button" id="llm-modal-close" class="text-gray-400 hover:text-white text-lg leading-none px-1">✕</button>
+      </div>
+
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block text-gray-300 font-semibold mb-1">Chọn nhanh nhà cung cấp (Preset)</label>
+          <select id="llm-preset-provider" class="w-full px-3 py-2 bg-[#1a1d23] border border-gray-700 rounded-lg text-gray-200 focus:border-blue-500 focus:outline-none">
+            <option value="">— Tự nhập hoặc giữ nguyên —</option>
+            <option value="https://api.minimax.io/v1|MiniMax-M3">MiniMax (api.minimax.io · MiniMax-M3)</option>
+            <option value="https://api.openai.com/v1|gpt-4o-mini">OpenAI (api.openai.com · gpt-4o-mini)</option>
+            <option value="https://generativelanguage.googleapis.com/v1beta/openai|gemini-2.5-flash">Google Gemini (OpenAI-compatible · gemini-2.5-flash)</option>
+            <option value="https://dashscope.aliyuncs.com/compatible-mode/v1|qwen-plus">Alibaba Qwen (DashScope · qwen-plus)</option>
+            <option value="http://127.0.0.1:11434/v1|llama3.1">Local Ollama (127.0.0.1:11434 · llama3.1)</option>
+          </select>
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-semibold mb-1">LLM Base URL (OpenAI-compatible)</label>
+          <input type="url" id="llm-input-url" placeholder="https://api.minimax.io/v1"
+            class="w-full px-3 py-2 bg-[#1a1d23] border border-gray-700 rounded-lg text-gray-100 focus:border-blue-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-semibold mb-1">Model Name</label>
+          <input type="text" id="llm-input-model" placeholder="MiniMax-M3 hoặc gpt-4o-mini"
+            class="w-full px-3 py-2 bg-[#1a1d23] border border-gray-700 rounded-lg text-gray-100 focus:border-blue-500 focus:outline-none" />
+        </div>
+
+        <div>
+          <label class="block text-gray-300 font-semibold mb-1">API Key / Token <span class="text-red-400">*</span></label>
+          <input type="password" id="llm-input-key" placeholder="sk-..." autocomplete="off"
+            class="w-full px-3 py-2 bg-[#1a1d23] border border-gray-700 rounded-lg text-gray-100 focus:border-blue-500 focus:outline-none font-mono" />
+        </div>
+
+        <div id="llm-modal-feedback" class="hidden px-3 py-2 rounded-lg text-xs"></div>
+      </div>
+
+      <div class="flex items-center justify-between gap-2 pt-2 border-t border-gray-800">
+        <button type="button" id="llm-clear-btn"
+          class="px-3 py-2 text-xs text-gray-400 hover:text-red-300 border border-gray-700 hover:border-red-500/40 rounded-lg transition">
+          Xóa Key RAM (Về .env / Template)
+        </button>
+        <div class="flex items-center gap-2">
+          <button type="button" id="llm-cancel-btn"
+            class="px-4 py-2 text-xs text-gray-300 hover:text-white border border-gray-700 rounded-lg transition">
+            Đóng
+          </button>
+          <button type="button" id="llm-save-btn"
+            class="px-4 py-2 text-xs font-semibold bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition">
+            Lưu tạm & Kiểm tra
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <script type="module" src="/js/app.js"></script>
 </body>
