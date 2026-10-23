@@ -19,6 +19,7 @@ import { jobQueue } from "./lib/job-queue.js";
 import { cleanupAllExpiredJobs } from "./lib/cleanup.js";
 import { closeAllActiveBrowsers } from "./workflow/step4-render.js";
 import { RateLimiter } from "./lib/rate-limit.js";
+import { getLlmStatusSummary, probeLlmStatus } from "./lib/llm-client.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -108,7 +109,14 @@ fastify.get("/health", async () => ({
   phase: jobQueue.status().active ? "rendering" : "idle",
   version: VERSION,
   uptime: process.uptime(),
+  llm: getLlmStatusSummary(),
 }));
+
+// Live LLM key/token verification for Web UI indicator
+fastify.get("/api/llm-status", async (req) => {
+  const force = req.query?.force === "1" || req.query?.force === "true";
+  return probeLlmStatus({ force });
+});
 
 // Root: serve index.html (already handled by fastifyStatic)
 

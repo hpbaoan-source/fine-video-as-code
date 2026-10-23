@@ -11,19 +11,78 @@
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => document.querySelectorAll(sel);
 
-// ─── Health check ───────────────────────────────────────
+// ─── Health & LLM Status check ──────────────────────────
 async function checkHealth() {
   try {
     const r = await fetch("/health");
     const data = await r.json();
-    $("#health-dot").classList.replace("bg-gray-600", "bg-green-500");
+    $("#health-dot").className = "inline-block w-2 h-2 rounded-full bg-green-500";
     $("#health-text").textContent = `v${data.version} · ${data.phase}`;
   } catch (e) {
-    $("#health-dot").classList.replace("bg-gray-600", "bg-red-500");
+    $("#health-dot").className = "inline-block w-2 h-2 rounded-full bg-red-500";
     $("#health-text").textContent = "server offline";
   }
 }
+
+async function checkLlmStatus(force = false) {
+  const badge = $("#llm-badge");
+  const dot = $("#llm-dot");
+  const text = $("#llm-text");
+  const bTitle = $("#llm-banner-title");
+  const bDesc = $("#llm-banner-desc");
+  const banner = $("#llm-banner");
+  if (!badge || !dot || !text) return;
+
+  text.textContent = "Checking LLM…";
+  try {
+    const r = await fetch(force ? "/api/llm-status?force=1" : "/api/llm-status");
+    const data = await r.json();
+    if (data.valid && data.status === "ready") {
+      // Green signal: valid LLM key & endpoint verified
+      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/40 text-emerald-300";
+      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#34d399]";
+      text.textContent = `AI LLM Active (${data.model})`;
+      if (banner && bTitle && bDesc) {
+        banner.className = "px-4 py-3 rounded-xl border border-emerald-500/30 bg-emerald-500/5 text-xs max-w-sm";
+        bTitle.className = "font-semibold text-emerald-300";
+        bTitle.textContent = `🟢 Key/Token LLM hợp lệ (${data.model})`;
+        bDesc.textContent = `AI sẽ tự động phân tích nội dung, chia scene & sinh sơ đồ động (${data.provider}).`;
+      }
+    } else if (data.configured && data.status === "invalid") {
+      // Red/Amber warning: key configured in .env but rejected or unreachable
+      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-500/10 border border-red-500/40 text-red-300";
+      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-red-400";
+      text.textContent = `LLM Key Error · Fallback Template`;
+      if (banner && bTitle && bDesc) {
+        banner.className = "px-4 py-3 rounded-xl border border-red-500/30 bg-red-500/5 text-xs max-w-sm";
+        bTitle.className = "font-semibold text-red-300";
+        bTitle.textContent = `🔴 Key/Token LLM không hợp lệ hoặc mất kết nối`;
+        bDesc.textContent = data.message || "Hệ thống sẽ tạm thời dùng chế độ Template mặc định.";
+      }
+    } else {
+      // Amber signal: no LLM_API_KEY configured -> Template-only mode
+      badge.className = "flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/40 text-amber-300";
+      dot.className = "inline-block w-2.5 h-2.5 rounded-full bg-amber-400";
+      text.textContent = "Template Mode (No LLM Key)";
+      if (banner && bTitle && bDesc) {
+        banner.className = "px-4 py-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs max-w-sm";
+        bTitle.className = "font-semibold text-amber-300";
+        bTitle.textContent = "🟡 Chế độ Template mặc định (Chưa có Key LLM)";
+        bDesc.textContent = "Thêm LLM_API_KEY vào file .env để bật AI tự động viết kịch bản & chia scene.";
+      }
+    }
+  } catch (e) {
+    dot.className = "inline-block w-2 h-2 rounded-full bg-gray-500";
+    text.textContent = "LLM status unknown";
+  }
+}
+
+const recheckBtn = $("#llm-recheck-btn");
+if (recheckBtn) {
+  recheckBtn.addEventListener("click", () => checkLlmStatus(true));
+}
 checkHealth();
+checkLlmStatus();
 
 // ─── Voice dropdown ─────────────────────────────────────
 //
